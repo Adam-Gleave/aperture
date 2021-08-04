@@ -174,7 +174,7 @@ fn main() {
     // We are only using one queue, so get the first element of the `queues` iterator.
     let queue = queues.next().unwrap();
 
-    let dimensions: [u32; 2] = surface.window().inner_size().into();
+    let mut dimensions: [u32; 2] = surface.window().inner_size().into();
 
     // Create the swapchain.
     // The swapchain allocates the color buffers that will contain the image visible on the screen.
@@ -286,7 +286,7 @@ fn main() {
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
                 if recreate_swapchain {
-                    let dimensions: [u32; 2] = surface.window().inner_size().into();
+                    dimensions = surface.window().inner_size().into();
                     let (new_swapchain, new_images) =
                         match swapchain.recreate().dimensions(dimensions).build() {
                             Ok(r) => r,
