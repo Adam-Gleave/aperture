@@ -1,4 +1,4 @@
-use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
+use cgmath::{InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool},
     command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents},
@@ -26,52 +26,13 @@ use winit::{
 
 use std::{iter, sync::Arc, time::Instant};
 
-#[derive(Default, Copy, Clone)]
-struct Vertex {
+#[derive(Default, Debug, Clone)]
+pub struct VPosNorm {
     position: [f32; 3],
+    normal: [f32; 3],
 }
 
-vulkano::impl_vertex!(Vertex, position);
-
-const VERTCIES: [Vertex; 8] = [
-    // Front
-    Vertex {
-        position: [-1.0, -1.0, 1.0],
-    },
-    Vertex {
-        position: [1.0, -1.0, 1.0],
-    },
-    Vertex {
-        position: [1.0, 1.0, 1.0],
-    },
-    Vertex {
-        position: [-1.0, 1.0, 1.0],
-    },
-    // Back
-    Vertex {
-        position: [-1.0, -1.0, -1.0],
-    },
-    Vertex {
-        position: [1.0, -1.0, -1.0],
-    },
-    Vertex {
-        position: [1.0, 1.0, -1.0],
-    },
-    Vertex {
-        position: [-1.0, 1.0, -1.0],
-    },
-];
-
-const INDICES: [u16; 36] = [
-    // Front
-    0, 1, 2, 2, 3, 0, // Right
-    1, 5, 6, 6, 2, 1, // Back
-    7, 6, 5, 5, 4, 7, // Left
-    4, 0, 3, 3, 6, 4, // Bottom
-    4, 5, 1, 1, 0, 4, // Top
-    3, 2, 6, 6, 7, 3,
-];
-
+vulkano::impl_vertex!(VPosNorm, position, normal);
 mod vert {
     vulkano_shaders::shader! {
         ty: "vertex",
@@ -87,6 +48,68 @@ mod frag {
 }
 
 fn main() {
+    let model = tobj::load_obj(
+        "obj/dragon.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            triangulate: true,
+            ..Default::default()
+        },
+    );
+
+    let (models, _) = model.expect("Failed to load OBJ");
+    let mesh = &models.first().unwrap().mesh;
+
+    let positions = (0..mesh.positions.len() / 3).map(|i| {
+        [
+            mesh.positions[i * 3],
+            mesh.positions[i * 3 + 1],
+            mesh.positions[i * 3 + 2],
+        ]
+    })
+    .collect::<Vec<_>>();
+
+    let mut normals = vec![[0f32; 3]; positions.len()];
+    if !mesh.normals.is_empty() {
+        for i in 0..mesh.normals.len() / 3 {
+            let n = [
+                mesh.normals[i * 3],
+                mesh.normals[i * 3 + 1],
+                mesh.normals[i * 3 + 2],
+            ];
+
+            normals[i] = n;
+        }
+    } else {
+        for i in 0..mesh.indices.len() / 3 {
+            let a = positions[mesh.indices[i * 3] as usize];
+            let b = positions[mesh.indices[i * 3 + 1] as usize];
+            let c = positions[mesh.indices[i * 3 + 2] as usize];
+
+            let v_a = Vector3::new(a[0], a[1], a[2]);
+            let v_b = Vector3::new(b[0], b[1], b[2]);
+            let v_c = Vector3::new(c[0], c[1], c[2]);
+            
+            let n = (v_b - v_a).cross(v_c - v_a).normalize();
+
+            normals[mesh.indices[i * 3] as usize] = [n.x, n.y, n.z];
+            normals[mesh.indices[i * 3 + 1] as usize] = [n.x, n.y, n.z];
+            normals[mesh.indices[i * 3 + 2] as usize] = [n.x, n.y, n.z];
+        }
+    }
+
+    let vertices = (0..positions.len()).map(|i| {
+        VPosNorm {
+            position: positions[i],
+            normal: normals[i],
+        }
+    })
+    .collect::<Vec<_>>();
+
+    let indicies = &mesh.indices;
+
+    println!("Loaded {} vertices, {} indicies", vertices.len(), indicies.len());
+
     let ev_loop = EventLoop::new();
     let instance = {
         let extensions = vulkano_win::required_extensions();
@@ -186,7 +209,7 @@ fn main() {
         device.clone(),
         BufferUsage::vertex_buffer(),
         false,
-        VERTCIES.iter().cloned(),
+        vertices.iter().cloned(),
     )
     .unwrap();
 
@@ -195,13 +218,16 @@ fn main() {
         device.clone(),
         BufferUsage::index_buffer(),
         false,
-        INDICES.iter().cloned(),
+        indicies.iter().cloned(),
     )
     .unwrap();
 
     // Now create a uniform buffer for the vertex shader.
     let uniform_buffer =
         CpuBufferPool::<vert::ty::Data>::new(device.clone(), BufferUsage::uniform_buffer());
+
+    let frag_buffer = 
+        CpuBufferPool::<frag::ty::Data>::new(device.clone(), BufferUsage::uniform_buffer());
 
     // Create the shader modules.
     let vs = vert::Shader::load(device.clone()).unwrap();
@@ -282,6 +308,8 @@ fn main() {
                     recreate_swapchain = false;
                 }
 
+                let eye = [0.3, 0.3, 1.0];
+
                 let uniform_buffer_subbuffer = {
                     let elapsed = rotation_start.elapsed();
                     let rotation =
@@ -296,25 +324,37 @@ fn main() {
                         0.01,
                         100.0,
                     );
+
                     let view = Matrix4::look_at_rh(
-                        Point3::new(2.0, 2.0, 6.0),
+                        Point3::new(eye[0], eye[1], eye[2]),
                         Point3::new(0.0, 0.0, 0.0),
                         Vector3::new(0.0, -1.0, 0.0),
                     );
+                    let scale = Matrix4::from_scale(1.0);
 
                     let uniform_data = vert::ty::Data {
                         world: Matrix4::from(rotation).into(),
-                        view: view.into(),
+                        view: Matrix4::from(view * scale).into(),
                         proj: proj.into(),
                     };
 
                     uniform_buffer.next(uniform_data).unwrap()
                 };
 
+                let frag_buffer_subbufer = {
+                    let frag_data = frag::ty::Data {
+                        view_pos: eye,
+                    };
+
+                    frag_buffer.next(frag_data).unwrap()
+                };
+
                 let layout = pipeline.layout().descriptor_set_layout(0).unwrap();
                 let set = Arc::new(
                     PersistentDescriptorSet::start(layout.clone())
                         .add_buffer(uniform_buffer_subbuffer)
+                        .unwrap()
+                        .add_buffer(frag_buffer_subbufer)
                         .unwrap()
                         .build()
                         .unwrap(),
@@ -345,7 +385,7 @@ fn main() {
                     .begin_render_pass(
                         framebuffers[image_num].clone(),
                         SubpassContents::Inline,
-                        vec![[0.0, 0.0, 1.0, 1.0].into(), 1f32.into()],
+                        vec![[0.05, 0.05, 0.05, 1.0].into(), 1f32.into()],
                     )
                     .unwrap()
                     .draw_indexed(
@@ -427,7 +467,7 @@ fn window_size_dependent_setup(
 
     let pipeline = Arc::new(
         GraphicsPipeline::start()
-            .vertex_input(SingleBufferDefinition::<Vertex>::new())
+            .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
             .vertex_shader(vs.main_entry_point(), ())
             .triangle_list()
             .viewports_dynamic_scissors_irrelevant(1)

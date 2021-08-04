@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 cgmath = "0.18"
+tobj = "3.1"
 vulkano = "0.24"
 vulkano-shaders = "0.24"
 vulkano-win = "0.24"
