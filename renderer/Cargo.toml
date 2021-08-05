@@ -8,6 +8,7 @@ renderer-common = { path = "../renderer-common" }
 renderer-mesh = { path = "../renderer-mesh" }
 
 cgmath = "0.18"
+tokio = { version = "1.9", features = [ "full" ] }
 vulkano = "0.24"
 vulkano-shaders = "0.24"
 vulkano-win = "0.24"

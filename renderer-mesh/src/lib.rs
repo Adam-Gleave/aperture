@@ -13,9 +13,9 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn from_obj<P>(path: P) -> Result<Mesh, Error> 
-    where P:
-        AsRef<Path> + Clone + Debug,
+    pub fn from_obj<P>(path: P) -> Result<Mesh, Error>
+    where
+        P: AsRef<Path> + Clone + Debug,
     {
         obj::load(path)
     }

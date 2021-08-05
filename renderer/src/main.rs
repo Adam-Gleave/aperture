@@ -1,52 +1,43 @@
+mod pipelines;
+mod shaders;
+
+use self::pipelines::Pipeline;
+use self::shaders::*;
 use renderer_common::VPosNorm;
 use renderer_mesh::Mesh;
 
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
-use vulkano::{
-    buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool},
-    command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents},
-    descriptor::descriptor_set::PersistentDescriptorSet,
-    device::{Device, DeviceExtensions, Features},
-    format::Format,
-    image::{view::ImageView, AttachmentImage, ImageUsage, SwapchainImage},
-    instance::{Instance, PhysicalDevice, PhysicalDeviceType},
-    pipeline::{
-        vertex::SingleBufferDefinition,
-        viewport::Viewport,
-        GraphicsPipeline, GraphicsPipelineAbstract,
-    },
-    render_pass::{Framebuffer, FramebufferAbstract, RenderPass, Subpass},
-    swapchain::{self, Swapchain, SwapchainCreationError},
-    sync::{self, GpuFuture},
-    Version,
+use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool};
+use vulkano::command_buffer::{
+    AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents,
 };
+use vulkano::descriptor::descriptor_set::PersistentDescriptorSet;
+use vulkano::device::{Device, DeviceExtensions, Features};
+use vulkano::format::Format;
+use vulkano::image::{view::ImageView, AttachmentImage, ImageUsage, SwapchainImage};
+use vulkano::instance::{Instance, PhysicalDevice, PhysicalDeviceType};
+use vulkano::pipeline::GraphicsPipelineAbstract;
+use vulkano::render_pass::{Framebuffer, FramebufferAbstract, RenderPass};
+use vulkano::swapchain::{self, Swapchain, SwapchainCreationError};
+use vulkano::sync::{self, GpuFuture};
+use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
-};
+use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::{Window, WindowBuilder};
 
-use std::{iter, sync::Arc, time::Instant};
+use std::sync::Arc;
+use std::time::Instant;
 
-mod vert {
-    vulkano_shaders::shader! {
-        ty: "vertex",
-        path: "../data/shaders/vert.glsl"
-    }
-}
-
-mod frag {
-    vulkano_shaders::shader! {
-        ty: "fragment",
-        path: "../data/shaders/frag.glsl"
-    }
-}
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let mesh = Mesh::from_obj("data/obj/dragon.obj").unwrap();
 
-    println!("Loaded {} vertices, {} indicies", mesh.vertices.len(), mesh.indices.len());
+    println!(
+        "Loaded {} vertices, {} indicies",
+        mesh.vertices.len(),
+        mesh.indices.len()
+    );
 
     let ev_loop = EventLoop::new();
     let instance = {
@@ -102,7 +93,10 @@ fn main() {
     // This then returns the device and a list of creates queues.
     let (device, mut queues) = Device::new(
         physical_device,
-        &Features::none(),
+        &Features {
+            fill_mode_non_solid: true,
+            ..Features::none()
+        },
         // Add any extensions that are required by the device to the extensions we want to enable.
         &DeviceExtensions::required_extensions(physical_device).union(&device_extensions),
         [(queue_family, 0.5)].iter().cloned(),
@@ -164,12 +158,13 @@ fn main() {
     let uniform_buffer =
         CpuBufferPool::<vert::ty::Data>::new(device.clone(), BufferUsage::uniform_buffer());
 
-    let frag_buffer = 
+    let frag_buffer =
         CpuBufferPool::<frag::ty::Data>::new(device.clone(), BufferUsage::uniform_buffer());
 
     // Create the shader modules.
     let vs = vert::Shader::load(device.clone()).unwrap();
     let fs = frag::Shader::load(device.clone()).unwrap();
+    let depth = depth::Shader::load(device.clone()).unwrap();
 
     // Create a render pass.
     let render_pass = Arc::new(
@@ -184,7 +179,7 @@ fn main() {
                 },
                 depth: {
                     load: Clear,
-                    store: DontCare,
+                    store: Store,
                     format: Format::D16Unorm,
                     samples: 1,
                 }
@@ -197,9 +192,18 @@ fn main() {
         .unwrap(),
     );
 
-    let (mut pipeline, mut framebuffers) =
-        window_size_dependent_setup(device.clone(), &vs, &fs, &images, render_pass.clone());
+    let mut pipeline_type = Pipeline::Shaded;
+    let (mut pipeline, mut framebuffers) = window_size_dependent_setup(
+        device.clone(),
+        &vs,
+        &fs,
+        &depth,
+        &images,
+        render_pass.clone(),
+        pipeline_type,
+    );
     let mut recreate_swapchain = false;
+    let mut update_pipeline = false;
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
     let rotation_start = Instant::now();
@@ -220,8 +224,44 @@ fn main() {
             } => {
                 recreate_swapchain = true;
             }
+            Event::DeviceEvent {
+                event:
+                    DeviceEvent::Key(KeyboardInput {
+                        scancode: _,
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(code),
+                        ..
+                    }),
+                ..
+            } => match code {
+                VirtualKeyCode::D => {
+                    pipeline_type = Pipeline::Depth;
+                    update_pipeline = true;
+                }
+                VirtualKeyCode::S => {
+                    pipeline_type = Pipeline::Shaded;
+                    update_pipeline = true;
+                }
+                VirtualKeyCode::W => {
+                    pipeline_type = Pipeline::Wireframe;
+                    update_pipeline = true;
+                }
+                _ => {}
+            },
             Event::RedrawEventsCleared => {
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
+
+                if update_pipeline {
+                    pipeline = pipeline_type.create(
+                        device.clone(),
+                        dimensions,
+                        &vs,
+                        &fs,
+                        &depth,
+                        render_pass.clone(),
+                    );
+                    update_pipeline = false;
+                }
 
                 if recreate_swapchain {
                     dimensions = surface.window().inner_size().into();
@@ -237,8 +277,10 @@ fn main() {
                         device.clone(),
                         &vs,
                         &fs,
+                        &depth,
                         &new_images,
                         render_pass.clone(),
+                        pipeline_type,
                     );
 
                     pipeline = new_pipeline;
@@ -280,9 +322,7 @@ fn main() {
                 };
 
                 let frag_buffer_subbufer = {
-                    let frag_data = frag::ty::Data {
-                        view_pos: eye,
-                    };
+                    let frag_data = frag::ty::Data { view_pos: eye };
 
                     frag_buffer.next(frag_data).unwrap()
                 };
@@ -374,8 +414,10 @@ fn window_size_dependent_setup(
     device: Arc<Device>,
     vs: &vert::Shader,
     fs: &frag::Shader,
+    depth: &depth::Shader,
     images: &[Arc<SwapchainImage<Window>>],
     render_pass: Arc<RenderPass>,
+    pipeline: Pipeline,
 ) -> (
     Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
     Vec<Arc<dyn FramebufferAbstract + Send + Sync>>,
@@ -403,23 +445,7 @@ fn window_size_dependent_setup(
         })
         .collect::<Vec<_>>();
 
-    let pipeline = Arc::new(
-        GraphicsPipeline::start()
-            .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
-            .vertex_shader(vs.main_entry_point(), ())
-            .triangle_list()
-            .viewports_dynamic_scissors_irrelevant(1)
-            .viewports(iter::once(Viewport {
-                origin: [0.0, 0.0],
-                dimensions: [dimensions[0] as f32, dimensions[1] as f32],
-                depth_range: 0.0..1.0,
-            }))
-            .fragment_shader(fs.main_entry_point(), ())
-            .depth_stencil_simple_depth()
-            .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
-            .build(device.clone())
-            .unwrap(),
-    );
+    let pipeline = pipeline.create(device, dimensions, vs, fs, depth, render_pass);
 
     (pipeline, framebuffers)
 }
