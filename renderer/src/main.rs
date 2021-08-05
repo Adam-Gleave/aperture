@@ -1,4 +1,7 @@
-use cgmath::{InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
+use renderer_common::VPosNorm;
+use renderer_mesh::Mesh;
+
+use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool},
     command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents},
@@ -26,89 +29,24 @@ use winit::{
 
 use std::{iter, sync::Arc, time::Instant};
 
-#[derive(Default, Debug, Clone)]
-pub struct VPosNorm {
-    position: [f32; 3],
-    normal: [f32; 3],
-}
-
-vulkano::impl_vertex!(VPosNorm, position, normal);
 mod vert {
     vulkano_shaders::shader! {
         ty: "vertex",
-        path: "src/vert.glsl"
+        path: "../data/shaders/vert.glsl"
     }
 }
 
 mod frag {
     vulkano_shaders::shader! {
         ty: "fragment",
-        path: "src/frag.glsl"
+        path: "../data/shaders/frag.glsl"
     }
 }
 
 fn main() {
-    let model = tobj::load_obj(
-        "obj/dragon.obj",
-        &tobj::LoadOptions {
-            single_index: true,
-            triangulate: true,
-            ..Default::default()
-        },
-    );
+    let mesh = Mesh::from_obj("data/obj/dragon.obj").unwrap();
 
-    let (models, _) = model.expect("Failed to load OBJ");
-    let mesh = &models.first().unwrap().mesh;
-
-    let positions = (0..mesh.positions.len() / 3).map(|i| {
-        [
-            mesh.positions[i * 3],
-            mesh.positions[i * 3 + 1],
-            mesh.positions[i * 3 + 2],
-        ]
-    })
-    .collect::<Vec<_>>();
-
-    let mut normals = vec![[0f32; 3]; positions.len()];
-    if !mesh.normals.is_empty() {
-        for i in 0..mesh.normals.len() / 3 {
-            let n = [
-                mesh.normals[i * 3],
-                mesh.normals[i * 3 + 1],
-                mesh.normals[i * 3 + 2],
-            ];
-
-            normals[i] = n;
-        }
-    } else {
-        for i in 0..mesh.indices.len() / 3 {
-            let a = positions[mesh.indices[i * 3] as usize];
-            let b = positions[mesh.indices[i * 3 + 1] as usize];
-            let c = positions[mesh.indices[i * 3 + 2] as usize];
-
-            let v_a = Vector3::new(a[0], a[1], a[2]);
-            let v_b = Vector3::new(b[0], b[1], b[2]);
-            let v_c = Vector3::new(c[0], c[1], c[2]);
-            
-            let n = (v_b - v_a).cross(v_c - v_a).normalize();
-
-            normals[mesh.indices[i * 3] as usize] = [n.x, n.y, n.z];
-            normals[mesh.indices[i * 3 + 1] as usize] = [n.x, n.y, n.z];
-            normals[mesh.indices[i * 3 + 2] as usize] = [n.x, n.y, n.z];
-        }
-    }
-
-    let vertices = (0..positions.len()).map(|i| {
-        VPosNorm {
-            position: positions[i],
-            normal: normals[i],
-        }
-    })
-    .collect::<Vec<_>>();
-
-    let indicies = &mesh.indices;
-
-    println!("Loaded {} vertices, {} indicies", vertices.len(), indicies.len());
+    println!("Loaded {} vertices, {} indicies", mesh.vertices.len(), mesh.indices.len());
 
     let ev_loop = EventLoop::new();
     let instance = {
@@ -209,7 +147,7 @@ fn main() {
         device.clone(),
         BufferUsage::vertex_buffer(),
         false,
-        vertices.iter().cloned(),
+        mesh.vertices.iter().cloned(),
     )
     .unwrap();
 
@@ -218,7 +156,7 @@ fn main() {
         device.clone(),
         BufferUsage::index_buffer(),
         false,
-        indicies.iter().cloned(),
+        mesh.indices.iter().cloned(),
     )
     .unwrap();
 

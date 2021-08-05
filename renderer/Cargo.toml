@@ -1,0 +1,14 @@
+[package]
+name = "renderer"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+renderer-common = { path = "../renderer-common" }
+renderer-mesh = { path = "../renderer-mesh" }
+
+cgmath = "0.18"
+vulkano = "0.24"
+vulkano-shaders = "0.24"
+vulkano-win = "0.24"
+winit = "0.25"

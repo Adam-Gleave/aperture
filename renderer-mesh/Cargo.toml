@@ -1,0 +1,10 @@
+[package]
+name = "renderer-mesh"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+renderer-common = { path = "../renderer-common" }
+
+cgmath = "0.18"
+tobj = "3.1"

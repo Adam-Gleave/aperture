@@ -881,6 +881,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
+name = "renderer"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "renderer-common",
+ "renderer-mesh",
+ "vulkano",
+ "vulkano-shaders",
+ "vulkano-win",
+ "winit",
+]
+
+[[package]]
+name = "renderer-common"
+version = "0.1.0"
+dependencies = [
+ "vulkano",
+]
+
+[[package]]
+name = "renderer-mesh"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "renderer-common",
+ "tobj",
+]
+
+[[package]]
 name = "rusttype"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -970,18 +999,6 @@ dependencies = [
  "wayland-client",
  "wayland-cursor",
  "wayland-protocols",
-]
-
-[[package]]
-name = "snow-sim"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "tobj",
- "vulkano",
- "vulkano-shaders",
- "vulkano-win",
- "winit",
 ]
 
 [[package]]
