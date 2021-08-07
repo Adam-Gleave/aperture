@@ -7,4 +7,5 @@ edition = "2018"
 renderer-common = { path = "../renderer-common" }
 
 cgmath = "0.18"
+gltf = "0.16"
 tobj = "3.1"

@@ -21,7 +21,7 @@ const vec3 AMBIENT_COLOR = vec3(0.05, 0.05, 0.05);
 const vec3 LIGHT_COLOR = vec3(0.6, 0.6, 0.6);
 const vec3 OBJECT_COLOR = vec3(1.0, 0.73, 0.39);
 
-const float ROUGHNESS = 0.05;
+const float ROUGHNESS = 0.4;
 const float METALNESS = 1.0;
 const float REFLECTANCE = 0.1;
 

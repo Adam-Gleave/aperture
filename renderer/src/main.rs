@@ -4,7 +4,6 @@ mod shaders;
 use self::pipelines::Pipeline;
 use self::shaders::*;
 use renderer_common::VPosNorm;
-use renderer_mesh::Mesh;
 
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool};
@@ -31,13 +30,17 @@ use std::time::Instant;
 
 #[tokio::main]
 async fn main() {
-    let mesh = Mesh::from_obj("data/obj/dragon.obj").unwrap();
+    let (mut meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/Box.glb").unwrap();
 
     println!(
-        "Loaded {} vertices, {} indicies",
-        mesh.vertices.len(),
-        mesh.indices.len()
+        "Loaded {} meshes, {} materials",
+        meshes.len(),
+        materials.len()
     );
+
+    // Use the first mesh and material for now.
+    let mesh = meshes.remove(0);
+    let _material = materials.remove(0);
 
     let ev_loop = EventLoop::new();
     let instance = {
@@ -141,7 +144,7 @@ async fn main() {
         device.clone(),
         BufferUsage::vertex_buffer(),
         false,
-        mesh.vertices.iter().cloned(),
+        mesh.primitives[0].vertices.iter().cloned(),
     )
     .unwrap();
 
@@ -150,7 +153,7 @@ async fn main() {
         device.clone(),
         BufferUsage::index_buffer(),
         false,
-        mesh.indices.iter().cloned(),
+        mesh.primitives[0].indices.iter().cloned(),
     )
     .unwrap();
 
@@ -310,7 +313,7 @@ async fn main() {
                         Point3::new(0.0, 0.0, 0.0),
                         Vector3::new(0.0, -1.0, 0.0),
                     );
-                    let scale = Matrix4::from_scale(1.0);
+                    let scale = Matrix4::from_scale(0.5);
 
                     let uniform_data = vert::ty::Data {
                         world: Matrix4::from(rotation).into(),

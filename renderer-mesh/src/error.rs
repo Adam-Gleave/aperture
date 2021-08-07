@@ -2,5 +2,7 @@ use std::ffi::OsString;
 
 #[derive(Debug)]
 pub enum Error {
-    LoadError(OsString),
+    MismatchedVerticesNormals,
+    NoSuchFile(OsString),
+    NoVerticesFound,
 }
