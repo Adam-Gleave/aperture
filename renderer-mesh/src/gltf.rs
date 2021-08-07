@@ -94,6 +94,10 @@ fn load_nodes<'a>(
                 .collect::<Result<Vec<_>, Error>>()?;
 
             let mut mesh = Mesh::default();
+            if let Some(name) = m.name() {
+                mesh.name = name.to_string();
+            }
+
             for p in primitives {
                 mesh.add_primitive(p);
             }

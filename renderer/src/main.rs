@@ -1,3 +1,4 @@
+mod draw_info;
 mod pipelines;
 mod shaders;
 
@@ -6,7 +7,7 @@ use self::shaders::*;
 use renderer_common::VPosNorm;
 
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool};
+use vulkano::buffer::{BufferUsage, CpuBufferPool};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents,
 };
@@ -21,16 +22,18 @@ use vulkano::swapchain::{self, Swapchain, SwapchainCreationError};
 use vulkano::sync::{self, GpuFuture};
 use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
-use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
+use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent, MouseScrollDelta};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 use std::sync::Arc;
 use std::time::Instant;
 
+const SCALE_STEP: f32 = 1.25;
+
 #[tokio::main]
 async fn main() {
-    let (mut meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/Box.glb").unwrap();
+    let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
 
     println!(
         "Loaded {} meshes, {} materials",
@@ -38,9 +41,9 @@ async fn main() {
         materials.len()
     );
 
-    // Use the first mesh and material for now.
-    let mesh = meshes.remove(0);
-    let _material = materials.remove(0);
+    // Use the first material for now.
+    let material = materials.remove(0);
+    println!("Using material: {:?}", material);
 
     let ev_loop = EventLoop::new();
     let instance = {
@@ -139,23 +142,10 @@ async fn main() {
             .unwrap()
     };
 
-    // Now create a vertex buffer.
-    let vertex_buffer = CpuAccessibleBuffer::from_iter(
-        device.clone(),
-        BufferUsage::vertex_buffer(),
-        false,
-        mesh.primitives[0].vertices.iter().cloned(),
-    )
-    .unwrap();
-
-    // Now create an index buffer.
-    let index_buffer = CpuAccessibleBuffer::from_iter(
-        device.clone(),
-        BufferUsage::index_buffer(),
-        false,
-        mesh.primitives[0].indices.iter().cloned(),
-    )
-    .unwrap();
+    let mut draw_infos = vec![];
+    for m in meshes {
+        draw_infos.extend(draw_info::generate_from_mesh(device.clone(), &m));
+    }
 
     // Now create a uniform buffer for the vertex shader.
     let uniform_buffer =
@@ -210,6 +200,7 @@ async fn main() {
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
     let rotation_start = Instant::now();
+    let mut scale = 1.0;
 
     ev_loop.run(move |ev, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -251,6 +242,22 @@ async fn main() {
                 }
                 _ => {}
             },
+            Event::DeviceEvent { event: DeviceEvent::MouseWheel { delta }, .. } => match delta {
+                MouseScrollDelta::LineDelta(delta_x, delta_y) => {
+                    if delta_x > 0.0 || delta_y > 0.0 {
+                        scale *= SCALE_STEP;
+                    } else if delta_x < 0.0 || delta_y < 0.0 {
+                        scale /= SCALE_STEP;
+                    }
+                }
+                MouseScrollDelta::PixelDelta(delta) => {
+                    if delta.x > 0.0 || delta.y > 0.0 {
+                        scale *= SCALE_STEP;
+                    } else if delta.x < 0.0 || delta.y < 0.0 {
+                        scale /= SCALE_STEP;
+                    }
+                }
+            }
             Event::RedrawEventsCleared => {
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
@@ -313,11 +320,11 @@ async fn main() {
                         Point3::new(0.0, 0.0, 0.0),
                         Vector3::new(0.0, -1.0, 0.0),
                     );
-                    let scale = Matrix4::from_scale(0.5);
+                    let scale_matrix = Matrix4::from_scale(scale);
 
                     let uniform_data = vert::ty::Data {
                         world: Matrix4::from(rotation).into(),
-                        view: Matrix4::from(view * scale).into(),
+                        view: Matrix4::from(view * scale_matrix).into(),
                         proj: proj.into(),
                     };
 
@@ -368,19 +375,23 @@ async fn main() {
                         SubpassContents::Inline,
                         vec![[0.05, 0.05, 0.05, 1.0].into(), 1f32.into()],
                     )
-                    .unwrap()
-                    .draw_indexed(
-                        pipeline.clone(),
-                        &DynamicState::none(),
-                        vec![vertex_buffer.clone()],
-                        index_buffer.clone(),
-                        set.clone(),
-                        (),
-                        vec![],
-                    )
-                    .unwrap()
-                    .end_render_pass()
                     .unwrap();
+
+                for draw_info in &draw_infos {
+                    builder
+                        .draw_indexed(
+                            pipeline.clone(),
+                            &DynamicState::none(),
+                            vec![draw_info.vertex_buffer.clone()],
+                            draw_info.index_buffer.clone(),
+                            set.clone(),
+                            (),
+                            vec![],
+                        )
+                        .unwrap();
+                }
+                
+                builder.end_render_pass().unwrap();
 
                 let command_buffer = builder.build().unwrap();
 
