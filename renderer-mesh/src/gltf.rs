@@ -20,7 +20,7 @@ where
 fn load_materials<'a>(gltf: &'a gltf::Document) -> impl Iterator<Item = Material> + 'a {
     gltf.materials().map(|m| {
         let mut material = Material::default();
-        
+
         if let Some(name) = m.name() {
             material.name = name.to_string();
         }
@@ -36,57 +36,62 @@ fn load_materials<'a>(gltf: &'a gltf::Document) -> impl Iterator<Item = Material
 }
 
 fn load_nodes<'a>(
-    gltf: &'a gltf::Document, 
+    gltf: &'a gltf::Document,
     buffers: &[gltf::buffer::Data],
-) -> Result<impl Iterator<Item = Mesh> +'a, Error> {
+) -> Result<impl Iterator<Item = Mesh> + 'a, Error> {
     Ok(gltf
         .nodes()
         .filter(|n| n.mesh().is_some())
         .map(|n| {
             let m = n.mesh().unwrap();
 
-            let primitives = m.primitives().map(|p| {
-                let reader = p.reader(|buffer| Some(&buffers[buffer.index()]));
+            let primitives = m
+                .primitives()
+                .map(|p| {
+                    let reader = p.reader(|buffer| Some(&buffers[buffer.index()]));
 
-                let positions = reader.read_positions().map_or(
-                    Err(Error::NoVerticesFound), 
-                    |p| Ok(p.collect::<Vec<_>>())
-                )?;
+                    let positions = reader
+                        .read_positions()
+                        .map_or(Err(Error::NoVerticesFound), |p| Ok(p.collect::<Vec<_>>()))?;
 
-                let normals = reader.read_normals().map_or(
-                    vec![[0.0, 0.0, 0.0]; positions.len()], 
-                    |n| n.map(|mut n| {
-                        // Invert the green channel (Vulkan uses Y- normals).
-                        n[1] *= -1.0;
-                        n
-                    }).collect::<Vec<_>>(),
-                );
+                    let normals =
+                        reader
+                            .read_normals()
+                            .map_or(vec![[0.0, 0.0, 0.0]; positions.len()], |n| {
+                                n.map(|mut n| {
+                                    // Invert the green channel (Vulkan uses Y- normals).
+                                    n[1] *= -1.0;
+                                    n
+                                })
+                                .collect::<Vec<_>>()
+                            });
 
-                if positions.len() != normals.len() {
-                    return Err(Error::MismatchedVerticesNormals);
-                }
-
-                let vertices = positions.iter().zip(normals.iter()).map(|(p, n)| {
-                    VPosNorm {
-                        position: *p,
-                        normal: *n,
+                    if positions.len() != normals.len() {
+                        return Err(Error::MismatchedVerticesNormals);
                     }
+
+                    let vertices = positions
+                        .iter()
+                        .zip(normals.iter())
+                        .map(|(p, n)| VPosNorm {
+                            position: *p,
+                            normal: *n,
+                        })
+                        .collect::<Vec<_>>();
+
+                    let indices = reader
+                        .read_indices()
+                        .take()
+                        .map_or(vec![], |i| i.into_u32().collect());
+
+                    let mut primitive = Primitive::default();
+                    primitive.vertices = vertices;
+                    primitive.indices = indices;
+                    primitive.material_index = p.material().index();
+
+                    Ok(primitive)
                 })
-                .collect::<Vec<_>>();
-
-                let indices = reader.read_indices().take().map_or(
-                    vec![],
-                    |i| i.into_u32().collect()
-                );
-
-                let mut primitive = Primitive::default();
-                primitive.vertices = vertices;
-                primitive.indices = indices;
-                primitive.material_index = p.material().index();
-
-                Ok(primitive)
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
+                .collect::<Result<Vec<_>, Error>>()?;
 
             let mut mesh = Mesh::default();
             for p in primitives {
@@ -96,6 +101,5 @@ fn load_nodes<'a>(
             Ok(mesh)
         })
         .collect::<Result<Vec<_>, Error>>()?
-        .into_iter()
-    ) 
+        .into_iter())
 }
