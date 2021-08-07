@@ -1,6 +1,8 @@
 use crate::{Error, Material, Mesh, Primitive};
 
-use renderer_common::VPosNorm;
+use cgmath::{Matrix4, Quaternion};
+
+use renderer_common::{Transform, VPosNorm};
 
 use std::{fmt::Debug, path::Path};
 
@@ -57,14 +59,10 @@ fn load_nodes<'a>(
                     let normals =
                         reader
                             .read_normals()
-                            .map_or(vec![[0.0, 0.0, 0.0]; positions.len()], |n| {
-                                n.map(|mut n| {
-                                    // Invert the green channel (Vulkan uses Y- normals).
-                                    n[1] *= -1.0;
-                                    n
-                                })
-                                .collect::<Vec<_>>()
-                            });
+                            .map_or(
+                                vec![[0.0, 0.0, 0.0]; positions.len()],
+                                |n| n.collect(),
+                            );
 
                     if positions.len() != normals.len() {
                         return Err(Error::MismatchedVerticesNormals);
@@ -88,6 +86,17 @@ fn load_nodes<'a>(
                     primitive.vertices = vertices;
                     primitive.indices = indices;
                     primitive.material_index = p.material().index();
+                    
+                    let transform = n.transform().decomposed();
+                    primitive.set_transform(Transform {
+                        translation: Matrix4::from_translation(transform.0.into()),
+                        rotation: Matrix4::from(Quaternion::from(transform.1)),
+                        scale: Matrix4::from_nonuniform_scale(
+                            transform.2[0],
+                            transform.2[1],
+                            transform.2[2],
+                        ),
+                    });
 
                     Ok(primitive)
                 })

@@ -1,6 +1,7 @@
-use std::fmt::Debug;
+use renderer_common::{Transform, VPosNorm};
 
-use renderer_common::VPosNorm;
+use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
 
 mod error;
 mod material;
@@ -39,4 +40,11 @@ pub struct Primitive {
     pub material_index: Option<usize>,
     pub vertices: Vec<VPosNorm>,
     pub indices: Vec<u32>,
+    pub transform: Arc<Mutex<Transform>>,
+}
+
+impl Primitive { 
+    pub fn set_transform(&self, transform: Transform) {
+        *self.transform.lock().expect("poisoned lock") = transform;
+    }
 }

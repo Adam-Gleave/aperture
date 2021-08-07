@@ -6,7 +6,7 @@ use self::pipelines::Pipeline;
 use self::shaders::*;
 use renderer_common::VPosNorm;
 
-use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
+use cgmath::{Matrix4, Point3, Rad, Vector3};
 use vulkano::buffer::{BufferUsage, CpuBufferPool};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents,
@@ -34,6 +34,7 @@ const SCALE_STEP: f32 = 1.25;
 #[tokio::main]
 async fn main() {
     let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
+    // let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/Box.glb").unwrap();
 
     println!(
         "Loaded {} meshes, {} materials",
@@ -259,6 +260,16 @@ async fn main() {
                 }
             }
             Event::RedrawEventsCleared => {
+                // Update model rotations
+                let elapsed = rotation_start.elapsed();
+                let rotation =
+                    elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
+                let rotation = Matrix4::from_angle_y(Rad(rotation as f32));
+
+                for draw_info in &draw_infos {
+                    draw_info.transform.lock().expect("poisoned lock").rotation = rotation;
+                }
+
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
                 if update_pipeline {
@@ -298,20 +309,16 @@ async fn main() {
                     recreate_swapchain = false;
                 }
 
-                let eye = [0.3, 0.3, 1.0];
+                let eye = [0.0003, 0.0003, 0.001];
+                // let eye = [0.3, 0.3, 1.0];
 
                 let uniform_buffer_subbuffer = {
-                    let elapsed = rotation_start.elapsed();
-                    let rotation =
-                        elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
-                    let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
-
                     // Note: flipping the cube here, since it was made for OpenGL.
                     let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
                     let proj = cgmath::perspective(
                         Rad(std::f32::consts::FRAC_PI_2),
                         aspect_ratio,
-                        0.01,
+                        0.00001,
                         100.0,
                     );
 
@@ -323,7 +330,6 @@ async fn main() {
                     let scale_matrix = Matrix4::from_scale(scale);
 
                     let uniform_data = vert::ty::Data {
-                        world: Matrix4::from(rotation).into(),
                         view: Matrix4::from(view * scale_matrix).into(),
                         proj: proj.into(),
                     };
@@ -332,7 +338,10 @@ async fn main() {
                 };
 
                 let frag_buffer_subbufer = {
-                    let frag_data = frag::ty::Data { view_pos: eye };
+                    let frag_data = frag::ty::Data { 
+                        rotation: rotation.into(),
+                        view_pos: eye,
+                    };
 
                     frag_buffer.next(frag_data).unwrap()
                 };
@@ -378,17 +387,34 @@ async fn main() {
                     .unwrap();
 
                 for draw_info in &draw_infos {
-                    builder
-                        .draw_indexed(
-                            pipeline.clone(),
-                            &DynamicState::none(),
-                            vec![draw_info.vertex_buffer.clone()],
-                            draw_info.index_buffer.clone(),
-                            set.clone(),
-                            (),
-                            vec![],
-                        )
-                        .unwrap();
+                    let push_constants = vert::ty::PushConstants {
+                        model: draw_info.composed_transform().into(),
+                    };
+
+                    if draw_info.has_indices() {
+                        builder
+                            .draw_indexed(
+                                pipeline.clone(),
+                                &DynamicState::none(),
+                                vec![draw_info.vertex_buffer.clone()],
+                                draw_info.index_buffer.as_ref().unwrap().clone(),
+                                set.clone(),
+                                push_constants,
+                                vec![],
+                            )
+                            .unwrap();
+                    } else {
+                        builder
+                            .draw(
+                                pipeline.clone(),
+                                &DynamicState::none(),
+                                vec![draw_info.vertex_buffer.clone()],
+                                set.clone(),
+                                push_constants,
+                                vec![],
+                            )
+                            .unwrap();
+                    }
                 }
                 
                 builder.end_render_pass().unwrap();
