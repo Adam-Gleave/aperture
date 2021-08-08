@@ -72,10 +72,7 @@ impl Pipeline {
         render_pass: Arc<RenderPass>,
     ) -> Arc<dyn GraphicsPipelineAbstract + Send + Sync> {
         let pipeline_layout_desc = {
-            let stages = vec![
-                vs.main_entry_point(),
-                fs.main_entry_point(),
-            ];
+            let stages = vec![vs.main_entry_point(), fs.main_entry_point()];
 
             let desc = stages
                 .into_iter()
@@ -83,31 +80,34 @@ impl Pipeline {
                     total.union(stage.layout_desc())
                 });
 
-            desc.union(&PipelineLayoutDesc::new(
-                vec![], 
-                vec![
-                    PipelineLayoutDescPcRange {
-                        offset: 0,
-                        size: 64,
-                        stages: ShaderStages { 
-                            vertex: true,
-                            ..ShaderStages::none()
+            desc.union(
+                &PipelineLayoutDesc::new(
+                    vec![],
+                    vec![
+                        PipelineLayoutDescPcRange {
+                            offset: 0,
+                            size: 64,
+                            stages: ShaderStages {
+                                vertex: true,
+                                ..ShaderStages::none()
+                            },
                         },
-                    },
-                    PipelineLayoutDescPcRange {
-                        offset: 64,
-                        size: 24,
-                        stages: ShaderStages {
-                            fragment: true,
-                            ..ShaderStages::none()
-                        }
-                    },
-                ]
+                        PipelineLayoutDescPcRange {
+                            offset: 64,
+                            size: 24,
+                            stages: ShaderStages {
+                                fragment: true,
+                                ..ShaderStages::none()
+                            },
+                        },
+                    ],
+                )
+                .unwrap(),
             )
-            .unwrap())
         };
 
-        let pipeline_layout = Arc::new(PipelineLayout::new(device.clone(), pipeline_layout_desc).unwrap());
+        let pipeline_layout =
+            Arc::new(PipelineLayout::new(device.clone(), pipeline_layout_desc).unwrap());
 
         Arc::new(
             GraphicsPipeline::start()

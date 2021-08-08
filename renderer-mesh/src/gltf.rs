@@ -1,8 +1,8 @@
 use crate::{Error, Material, Mesh, Primitive};
 
-use cgmath::{Matrix4, Quaternion};
-
 use renderer_common::{Transform, VPosNorm};
+
+use cgmath::{Matrix4, Quaternion};
 
 use std::{fmt::Debug, path::Path};
 
@@ -73,13 +73,9 @@ fn load_nodes<'a>(
                         .read_positions()
                         .map_or(Err(Error::NoVerticesFound), |p| Ok(p.collect::<Vec<_>>()))?;
 
-                    let normals =
-                        reader
-                            .read_normals()
-                            .map_or(
-                                vec![[0.0, 0.0, 0.0]; positions.len()],
-                                |n| n.collect(),
-                            );
+                    let normals = reader
+                        .read_normals()
+                        .map_or(vec![[0.0, 0.0, 0.0]; positions.len()], |n| n.collect());
 
                     if positions.len() != normals.len() {
                         return Err(Error::MismatchedVerticesNormals);
@@ -103,7 +99,7 @@ fn load_nodes<'a>(
                     primitive.vertices = vertices;
                     primitive.indices = indices;
                     primitive.material_index = p.material().index();
-                    
+
                     primitive.set_transform(transform.clone());
 
                     Ok(primitive)

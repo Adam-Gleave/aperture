@@ -2,12 +2,13 @@ mod draw_info;
 mod pipelines;
 mod shaders;
 
-use self::pipelines::Pipeline;
-use self::shaders::*;
-use renderer_common::VPosNorm;
+use pipelines::Pipeline;
+use shaders::*;
 
-use cgmath::{Deg, Matrix4, One, Point3, Rad, Vector3, Zero};
+use renderer_common::VPosNorm;
 use renderer_mesh::Material;
+
+use cgmath::{Deg, Matrix4, One, Point3, Vector3};
 use vulkano::buffer::{BufferUsage, CpuBufferPool};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents,
@@ -23,19 +24,21 @@ use vulkano::swapchain::{self, Swapchain, SwapchainCreationError};
 use vulkano::sync::{self, GpuFuture};
 use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
-use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent, MouseScrollDelta};
+use winit::event::{
+    DeviceEvent, ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent,
+};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 use std::convert::TryInto;
 use std::sync::Arc;
-use std::time::Instant;
 
 const SCALE_STEP: f32 = 1.25;
 
 #[tokio::main]
 async fn main() {
-    let (meshes, materials) = renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
+    let (meshes, materials) =
+        renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
     // let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/Box.glb").unwrap();
 
     println!(
@@ -198,7 +201,6 @@ async fn main() {
     let mut update_pipeline = false;
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
-    let rotation_start = Instant::now();
     let mut scale = 1.0;
 
     let default_material = Material::default();
@@ -243,7 +245,10 @@ async fn main() {
                 }
                 _ => {}
             },
-            Event::DeviceEvent { event: DeviceEvent::MouseWheel { delta }, .. } => match delta {
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseWheel { delta },
+                ..
+            } => match delta {
                 MouseScrollDelta::LineDelta(delta_x, delta_y) => {
                     if delta_x > 0.0 || delta_y > 0.0 {
                         scale *= SCALE_STEP;
@@ -258,7 +263,7 @@ async fn main() {
                         scale /= SCALE_STEP;
                     }
                 }
-            }
+            },
             Event::RedrawEventsCleared => {
                 // Update model rotations
                 // let elapsed = rotation_start.elapsed();
@@ -315,12 +320,7 @@ async fn main() {
 
                 let uniform_buffer_subbuffer = {
                     let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
-                    let proj = cgmath::perspective(
-                        Deg(60.0),
-                        aspect_ratio,
-                        0.00001,
-                        100.0,
-                    );
+                    let proj = cgmath::perspective(Deg(60.0), aspect_ratio, 0.00001, 100.0);
 
                     let view = Matrix4::look_at_rh(
                         Point3::new(eye[0], eye[1], eye[2]),
@@ -338,7 +338,7 @@ async fn main() {
                 };
 
                 let frag_buffer_subbufer = {
-                    let frag_data = frag::ty::Data { 
+                    let frag_data = frag::ty::Data {
                         rotation: Matrix4::one().into(),
                         view_pos: eye,
                     };
@@ -391,7 +391,7 @@ async fn main() {
                         model: draw_info.composed_transform().into(),
                     };
 
-                    let material = if draw_info.material_index <= -1  {
+                    let material = if draw_info.material_index <= -1 {
                         &default_material
                     } else {
                         &materials[draw_info.material_index as usize]
@@ -404,12 +404,16 @@ async fn main() {
                         roughness: material.roughness_factor,
                     };
 
-                    let vert_data = unsafe { 
-                        std::mem::transmute::<vert::ty::VertPushConstants, [u8; 64]>(vert_push_constants)
+                    let vert_data = unsafe {
+                        std::mem::transmute::<vert::ty::VertPushConstants, [u8; 64]>(
+                            vert_push_constants,
+                        )
                     };
 
-                    let frag_data = unsafe { 
-                        std::mem::transmute::<frag::ty::FragPushConstants, [u8; 88]>(frag_push_constants)
+                    let frag_data = unsafe {
+                        std::mem::transmute::<frag::ty::FragPushConstants, [u8; 88]>(
+                            frag_push_constants,
+                        )
                     };
 
                     let mut data_vec = vert_data.to_vec();
@@ -441,7 +445,7 @@ async fn main() {
                             .unwrap();
                     }
                 }
-                
+
                 builder.end_render_pass().unwrap();
 
                 let command_buffer = builder.build().unwrap();

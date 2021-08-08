@@ -43,7 +43,7 @@ pub struct Primitive {
     pub transform: Arc<Mutex<Transform>>,
 }
 
-impl Primitive { 
+impl Primitive {
     pub fn set_transform(&self, transform: Transform) {
         *self.transform.lock().expect("poisoned lock") = transform;
     }

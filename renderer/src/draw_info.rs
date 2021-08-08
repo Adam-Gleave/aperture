@@ -21,40 +21,46 @@ impl DrawInfo {
     }
 
     pub fn composed_transform(&self) -> Matrix4<f32> {
-        self.transform.lock().expect("poisoned_lock").clone().compose()
+        self.transform
+            .lock()
+            .expect("poisoned_lock")
+            .clone()
+            .compose()
     }
 }
 
 pub fn generate_from_mesh(device: Arc<Device>, mesh: &Mesh) -> Vec<DrawInfo> {
-    mesh.primitives.iter().map(|p| {
-        let vertex_buffer = CpuAccessibleBuffer::from_iter(
-            device.clone(),
-            BufferUsage::vertex_buffer(),
-            false,
-            p.vertices.iter().cloned(),
-        )
-        .unwrap();
-
-        let index_buffer = if !p.indices.is_empty() {
-            Some(
-                CpuAccessibleBuffer::from_iter(
-                    device.clone(),
-                    BufferUsage::index_buffer(),
-                    false,
-                    p.indices.iter().cloned(),
-                )
-                .unwrap()
+    mesh.primitives
+        .iter()
+        .map(|p| {
+            let vertex_buffer = CpuAccessibleBuffer::from_iter(
+                device.clone(),
+                BufferUsage::vertex_buffer(),
+                false,
+                p.vertices.iter().cloned(),
             )
-        } else {
-            None
-        };
+            .unwrap();
 
-        DrawInfo { 
-            vertex_buffer, 
-            index_buffer,
-            transform: p.transform.clone(),
-            material_index: p.material_index.map_or_else(|| -1, |i| i as i32),
-        }
-    })
-    .collect()
+            let index_buffer = if !p.indices.is_empty() {
+                Some(
+                    CpuAccessibleBuffer::from_iter(
+                        device.clone(),
+                        BufferUsage::index_buffer(),
+                        false,
+                        p.indices.iter().cloned(),
+                    )
+                    .unwrap(),
+                )
+            } else {
+                None
+            };
+
+            DrawInfo {
+                vertex_buffer,
+                index_buffer,
+                transform: p.transform.clone(),
+                material_index: p.material_index.map_or_else(|| -1, |i| i as i32),
+            }
+        })
+        .collect()
 }

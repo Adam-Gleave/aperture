@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Zero};
+use cgmath::{Matrix4, One};
 
 #[derive(Default, Debug, Clone)]
 pub struct VPosNorm {
@@ -24,9 +24,9 @@ impl Default for Transform {
 impl Transform {
     pub fn identity() -> Self {
         Self {
-            translation: Matrix4::zero(),
-            rotation: Matrix4::zero(),
-            scale: Matrix4::zero(),
+            translation: Matrix4::one(),
+            rotation: Matrix4::one(),
+            scale: Matrix4::one(),
         }
     }
 
