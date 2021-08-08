@@ -96,7 +96,7 @@ impl Pipeline {
                     },
                     PipelineLayoutDescPcRange {
                         offset: 64,
-                        size: 88,
+                        size: 24,
                         stages: ShaderStages {
                             fragment: true,
                             ..ShaderStages::none()
@@ -107,7 +107,7 @@ impl Pipeline {
             .unwrap())
         };
 
-        let pipeline_layout = PipelineLayout::new(device.clone(), pipeline_layout_desc).unwrap();
+        let pipeline_layout = Arc::new(PipelineLayout::new(device.clone(), pipeline_layout_desc).unwrap());
 
         Arc::new(
             GraphicsPipeline::start()
@@ -123,10 +123,7 @@ impl Pipeline {
                 .fragment_shader(fs.main_entry_point(), ())
                 .depth_stencil_simple_depth()
                 .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
-                .with_pipeline_layout(
-                    device.clone(), 
-                    Arc::new(pipeline_layout)
-                )
+                .with_pipeline_layout(device.clone(), pipeline_layout)
                 .unwrap(),
         )
     }

@@ -52,29 +52,17 @@ vec3 F_FresnelSchlick(float cosTheta, vec3 F0) {
 // Hence, roughness is accounted for in this calculation. The higher the
 // roughness, the greater the geometric shadowing.
 //
-float G_Smith_Schlick_GGX(float NdotV, float NdotL, float alpha) {
-    float k = alpha / 2;
+float GeometrySchlickGGX(float NdotV, float k) {
+    float denominator = NdotV * (1.0 - k) + k;
+
+    return NdotV / denominator;
+}
+
+float G_Smith(float NdotV, float NdotL, float alpha) {
+    float GGX_L = GeometrySchlickGGX(NdotV, alpha);
+    float GGX_V = GeometrySchlickGGX(NdotL, alpha);
     
-    float G_L = NdotL / (NdotL * (1 - k) + k);
-    float G_V = NdotV / (NdotV * (1 - k) + k);
-
-    return G_L * G_V;
-}
-
-float GeometrySchlickGGX(float NdotV, float roughness) {
-    float r = (roughness + 1.0);
-    float k = (r*r) / 8.0;
-    float nom   = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
-    return nom / denom;
-}
-
-float G_Smith(vec3 N, vec3 V, vec3 L, float roughness) {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
-    return ggx1 * ggx2;
+    return 0.5 / GGX_L * GGX_V;
 }
 
 // Calculate the GGX (Trowbridge-Reitz) normal distribution.
@@ -119,7 +107,9 @@ void main() {
 
     vec3 base_color = push_constants.base_color.rgb;
     float metalness = push_constants.metalness; 
-    float roughness = push_constants.roughness;
+    float roughness = clamp(push_constants.roughness, 0.05, 1.0);
+
+    vec3 ambient_color = base_color * vec3(0.03);
 
     // V: view vector
     // N: normal
@@ -153,7 +143,7 @@ void main() {
         vec3 F = F_FresnelSchlick(HdotV, F0);
 
         // Geometric shadowing: Smith Schlick-GGX
-        float G = G_Smith(N, V, L, alpha);
+        float G = G_Smith(NdotV, NdotL, alpha);
 
         // Normal Distribution Function (NDF): GGX
         float D = D_GGX(NdotH, alpha);
@@ -173,7 +163,7 @@ void main() {
         Lo += (diffuse + specular) * LIGHT_COLOR;
     }
 
-    vec3 color = Lo;
+    vec3 color = ambient_color + Lo;
 
     // Gamma correction
     color = pow(color, vec3(1.0 / 2.2));
