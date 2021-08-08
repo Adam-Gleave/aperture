@@ -1,6 +1,9 @@
 use crate::{depth, frag, vert, VPosNorm};
 
+use vulkano::descriptor::descriptor::ShaderStages;
 use vulkano::device::Device;
+use vulkano::pipeline::layout::{PipelineLayout, PipelineLayoutDesc, PipelineLayoutDescPcRange};
+use vulkano::pipeline::shader::EntryPointAbstract;
 use vulkano::pipeline::vertex::SingleBufferDefinition;
 use vulkano::pipeline::viewport::Viewport;
 use vulkano::pipeline::{GraphicsPipeline, GraphicsPipelineAbstract};
@@ -68,6 +71,44 @@ impl Pipeline {
         fs: &frag::Shader,
         render_pass: Arc<RenderPass>,
     ) -> Arc<dyn GraphicsPipelineAbstract + Send + Sync> {
+        let pipeline_layout_desc = {
+            let stages = vec![
+                vs.main_entry_point(),
+                fs.main_entry_point(),
+            ];
+
+            let desc = stages
+                .into_iter()
+                .fold(PipelineLayoutDesc::empty(), |total, stage| {
+                    total.union(stage.layout_desc())
+                });
+
+            desc.union(&PipelineLayoutDesc::new(
+                vec![], 
+                vec![
+                    PipelineLayoutDescPcRange {
+                        offset: 0,
+                        size: 64,
+                        stages: ShaderStages { 
+                            vertex: true,
+                            ..ShaderStages::none()
+                        },
+                    },
+                    PipelineLayoutDescPcRange {
+                        offset: 64,
+                        size: 88,
+                        stages: ShaderStages {
+                            fragment: true,
+                            ..ShaderStages::none()
+                        }
+                    },
+                ]
+            )
+            .unwrap())
+        };
+
+        let pipeline_layout = PipelineLayout::new(device.clone(), pipeline_layout_desc).unwrap();
+
         Arc::new(
             GraphicsPipeline::start()
                 .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
@@ -82,7 +123,10 @@ impl Pipeline {
                 .fragment_shader(fs.main_entry_point(), ())
                 .depth_stencil_simple_depth()
                 .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
-                .build(device.clone())
+                .with_pipeline_layout(
+                    device.clone(), 
+                    Arc::new(pipeline_layout)
+                )
                 .unwrap(),
         )
     }

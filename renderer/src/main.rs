@@ -6,7 +6,8 @@ use self::pipelines::Pipeline;
 use self::shaders::*;
 use renderer_common::VPosNorm;
 
-use cgmath::{Matrix4, Point3, Rad, Vector3};
+use cgmath::{Matrix4, Point3, Rad, Vector3, Zero};
+use renderer_mesh::Material;
 use vulkano::buffer::{BufferUsage, CpuBufferPool};
 use vulkano::command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents,
@@ -26,6 +27,7 @@ use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCo
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -33,7 +35,7 @@ const SCALE_STEP: f32 = 1.25;
 
 #[tokio::main]
 async fn main() {
-    let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
+    let (meshes, materials) = renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
     // let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/Box.glb").unwrap();
 
     println!(
@@ -41,10 +43,6 @@ async fn main() {
         meshes.len(),
         materials.len()
     );
-
-    // Use the first material for now.
-    let material = materials.remove(0);
-    println!("Using material: {:?}", material);
 
     let ev_loop = EventLoop::new();
     let instance = {
@@ -203,6 +201,8 @@ async fn main() {
     let rotation_start = Instant::now();
     let mut scale = 1.0;
 
+    let default_material = Material::default();
+
     ev_loop.run(move |ev, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
@@ -309,7 +309,7 @@ async fn main() {
                     recreate_swapchain = false;
                 }
 
-                let eye = [0.0003, 0.0003, 0.001];
+                let eye = [0.003, 0.003, 0.01];
                 // let eye = [0.3, 0.3, 1.0];
 
                 let uniform_buffer_subbuffer = {
@@ -386,9 +386,34 @@ async fn main() {
                     .unwrap();
 
                 for draw_info in &draw_infos {
-                    let push_constants = vert::ty::PushConstants {
+                    let vert_push_constants = vert::ty::VertPushConstants {
                         model: draw_info.composed_transform().into(),
                     };
+
+                    let material = if draw_info.material_index <= -1  {
+                        &default_material
+                    } else {
+                        &materials[draw_info.material_index as usize]
+                    };
+
+                    let frag_push_constants = frag::ty::FragPushConstants {
+                        _dummy0: [0u8; 64],
+                        base_color: material.base_color_factor.into(),
+                        metalness: material.metallic_factor,
+                        roughness: material.roughness_factor,
+                    };
+
+                    let vert_data = unsafe { 
+                        std::mem::transmute::<vert::ty::VertPushConstants, [u8; 64]>(vert_push_constants)
+                    };
+
+                    let frag_data = unsafe { 
+                        std::mem::transmute::<frag::ty::FragPushConstants, [u8; 88]>(frag_push_constants)
+                    };
+
+                    let mut data_vec = vert_data.to_vec();
+                    data_vec.extend(frag_data.iter().skip(64));
+                    let push_constants: [u8; 88] = data_vec.try_into().unwrap();
 
                     if draw_info.has_indices() {
                         builder

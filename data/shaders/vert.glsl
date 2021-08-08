@@ -11,7 +11,7 @@ layout(set = 0, binding = 0) uniform Data {
     mat4 proj;
 } uniforms;
 
-layout(push_constant) uniform PushConstants {
+layout(push_constant) uniform VertPushConstants {
     mat4 model;
 } push_constants;
 

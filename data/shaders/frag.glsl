@@ -18,11 +18,16 @@ const vec3 LIGHTS[2] = vec3[2](
 const float PI = 3.1415926538;
 
 const vec3 LIGHT_COLOR = vec3(1.0, 1.0, 1.0);
-const vec3 OBJECT_COLOR = vec3(1.0, 0.73, 0.39);
 
-const float ROUGHNESS = 0.4;
-const float METALNESS = 1.0;
+const float roughness = 0.4;
+const float metalness = 1.0;
 const float REFLECTANCE = 0.04;
+
+layout(push_constant) uniform FragPushConstants {
+    layout(offset = 64) vec4 base_color;
+    float metalness;
+    float roughness;
+} push_constants;
 
 // Calculates the Fresnel-Schlick approximation.
 //
@@ -112,16 +117,20 @@ float lambert(vec3 N, vec3 L) {
 void main() {
     vec3 result = vec3(0.0, 0.0, 0.0);
 
+    vec3 base_color = push_constants.base_color.rgb;
+    float metalness = push_constants.metalness; 
+    float roughness = push_constants.roughness;
+
     // V: view vector
     // N: normal
     vec3 V = normalize(uniforms.view_pos - frag_pos);
     vec3 N = v_normal;
 
-    float alpha = ROUGHNESS * ROUGHNESS;
+    float alpha = roughness * roughness;
 
     vec3 F0 = vec3(0.04);
 
-    vec3 specular_color = mix(F0, OBJECT_COLOR, METALNESS);
+    vec3 specular_color = mix(F0, base_color, metalness);
     F0 = vec3(max(max(specular_color.r, specular_color.g), specular_color.b));
 
     vec3 Lo = vec3(0.0);
@@ -158,8 +167,8 @@ void main() {
         // Calculate the Disney diffuse contribution.
         float F90 = 0.5 * 2.0 * alpha * LdotH * LdotH;
         float diffuse_factor = Fd_Burley(NdotV, NdotL, LdotH, alpha); 
-        diffuse_factor *= (1.0 - METALNESS);
-        vec3 diffuse = diffuse_factor * OBJECT_COLOR;
+        diffuse_factor *= (1.0 - metalness);
+        vec3 diffuse = diffuse_factor * base_color;
 
         Lo += (diffuse + specular) * LIGHT_COLOR;
     }

@@ -12,6 +12,7 @@ pub struct DrawInfo {
     pub vertex_buffer: Arc<CpuAccessibleBuffer<[VPosNorm]>>,
     pub index_buffer: Option<Arc<CpuAccessibleBuffer<[u32]>>>,
     pub transform: Arc<Mutex<Transform>>,
+    pub material_index: i32,
 }
 
 impl DrawInfo {
@@ -52,6 +53,7 @@ pub fn generate_from_mesh(device: Arc<Device>, mesh: &Mesh) -> Vec<DrawInfo> {
             vertex_buffer, 
             index_buffer,
             transform: p.transform.clone(),
+            material_index: p.material_index.map_or_else(|| -1, |i| i as i32),
         }
     })
     .collect()
