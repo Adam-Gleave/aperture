@@ -31,7 +31,7 @@ impl Transform {
     }
 
     pub fn compose(&self) -> Matrix4<f32> {
-        // Row-major order
-        self.scale * self.rotation * self.translation
+        // Column-major order
+        self.translation * self.rotation * self.scale
     }
 }

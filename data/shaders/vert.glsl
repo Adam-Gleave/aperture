@@ -19,6 +19,7 @@ void main() {
     mat4 modelview = uniforms.view * push_constants.model;
 
     gl_Position = uniforms.proj * modelview * vec4(position, 1.0);
+    gl_Position.x = -gl_Position.x;
 
     v_normal = transpose(inverse(mat3(push_constants.model))) * normal;
     frag_pos = vec3(push_constants.model * vec4(position, 1.0));

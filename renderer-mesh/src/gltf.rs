@@ -47,6 +47,23 @@ fn load_nodes<'a>(
         .map(|n| {
             let m = n.mesh().unwrap();
 
+            let n_transform = n.transform().decomposed();
+            let transform = Transform {
+                translation: Matrix4::from_translation(n_transform.0.into()),
+                // GLTF quaternions are (x, y, z, w), but cgmath quaternions are (w, x, y, z).
+                rotation: Matrix4::from(Quaternion::new(
+                    n_transform.1[3],
+                    n_transform.1[0],
+                    n_transform.1[1],
+                    n_transform.1[2],
+                )),
+                scale: Matrix4::from_nonuniform_scale(
+                    n_transform.2[0],
+                    n_transform.2[1],
+                    n_transform.2[2],
+                ),
+            };
+
             let primitives = m
                 .primitives()
                 .map(|p| {
@@ -87,16 +104,7 @@ fn load_nodes<'a>(
                     primitive.indices = indices;
                     primitive.material_index = p.material().index();
                     
-                    let transform = n.transform().decomposed();
-                    primitive.set_transform(Transform {
-                        translation: Matrix4::from_translation(transform.0.into()),
-                        rotation: Matrix4::from(Quaternion::from(transform.1)),
-                        scale: Matrix4::from_nonuniform_scale(
-                            transform.2[0],
-                            transform.2[1],
-                            transform.2[2],
-                        ),
-                    });
+                    primitive.set_transform(transform.clone());
 
                     Ok(primitive)
                 })

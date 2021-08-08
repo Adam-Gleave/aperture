@@ -10,9 +10,11 @@ layout(set = 0, binding = 1) uniform Data {
     vec3 view_pos;
 } uniforms;
 
-const vec3 LIGHTS[2] = vec3[2](
+const vec3 LIGHTS[4] = vec3[4](
     vec3(-2.8, 0.2, -0.5),
-    vec3(0.6, 1.2, 0.6)
+    vec3(0.6, 1.2, 0.6),
+    vec3(12.7, 2.1, 0.5),
+    vec3(-18.7, -12.5, 8.6)
 );
 
 const float PI = 3.1415926538;
@@ -125,7 +127,7 @@ void main() {
 
     vec3 Lo = vec3(0.0);
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 4; i++) {
         vec3 light_pos = vec3(uniforms.rotation * vec4(LIGHTS[i], 1.0));
 
         // L: incident light vector

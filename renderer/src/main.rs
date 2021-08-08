@@ -6,7 +6,7 @@ use self::pipelines::Pipeline;
 use self::shaders::*;
 use renderer_common::VPosNorm;
 
-use cgmath::{Matrix4, Point3, Rad, Vector3, Zero};
+use cgmath::{Deg, Matrix4, One, Point3, Rad, Vector3, Zero};
 use renderer_mesh::Material;
 use vulkano::buffer::{BufferUsage, CpuBufferPool};
 use vulkano::command_buffer::{
@@ -261,14 +261,15 @@ async fn main() {
             }
             Event::RedrawEventsCleared => {
                 // Update model rotations
-                let elapsed = rotation_start.elapsed();
-                let rotation =
-                    elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
-                let rotation = Matrix4::from_angle_y(Rad(rotation as f32));
+                // let elapsed = rotation_start.elapsed();
+                // let rotation =
+                //     elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
+                // let rotation = Matrix4::from_angle_x(Rad(rotation as f32));
+                // let rotation = Matrix4::from_axis_angle(Vector3::new(1.0, 0.0, 0.0), Deg(90.0));
 
-                for draw_info in &draw_infos {
-                    draw_info.transform.lock().expect("poisoned lock").rotation = rotation;
-                }
+                // for draw_info in &draw_infos {
+                //     draw_info.transform.lock().expect("poisoned lock").rotation = rotation;
+                // }
 
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
@@ -315,7 +316,7 @@ async fn main() {
                 let uniform_buffer_subbuffer = {
                     let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
                     let proj = cgmath::perspective(
-                        Rad(std::f32::consts::FRAC_PI_2),
+                        Deg(60.0),
                         aspect_ratio,
                         0.00001,
                         100.0,
@@ -323,7 +324,7 @@ async fn main() {
 
                     let view = Matrix4::look_at_rh(
                         Point3::new(eye[0], eye[1], eye[2]),
-                        Point3::new(0.0, 0.0, 0.0),
+                        Point3::new(0.003, 0.003, 0.0),
                         Vector3::new(0.0, -1.0, 0.0),
                     );
                     let scale_matrix = Matrix4::from_scale(scale);
@@ -338,7 +339,7 @@ async fn main() {
 
                 let frag_buffer_subbufer = {
                     let frag_data = frag::ty::Data { 
-                        rotation: rotation.into(),
+                        rotation: Matrix4::one().into(),
                         view_pos: eye,
                     };
 
