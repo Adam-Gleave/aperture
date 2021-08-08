@@ -11,10 +11,10 @@ layout(set = 0, binding = 1) uniform Data {
 } uniforms;
 
 const vec3 LIGHTS[4] = vec3[4](
-    vec3(-2.8, 0.2, -0.5),
-    vec3(0.6, 1.2, 0.6),
-    vec3(12.7, 2.1, 0.5),
-    vec3(-18.7, -12.5, 8.6)
+    vec3(-0.7, 0.08, -0.8),
+    vec3(-0.35, 0.2, 0.6),
+    vec3(0.3, 0.05, 0.2),
+    vec3(-1.87, -1.25, 0.86)
 );
 
 const float PI = 3.1415926538;
@@ -108,10 +108,8 @@ void main() {
     vec3 result = vec3(0.0, 0.0, 0.0);
 
     vec3 base_color = push_constants.base_color.rgb;
-    float metalness = push_constants.metalness; 
+    float metalness = clamp(push_constants.metalness, 0.05, 1.0); 
     float roughness = clamp(push_constants.roughness, 0.05, 1.0);
-
-    vec3 ambient_color = base_color * vec3(0.03);
 
     // V: view vector
     // N: normal
@@ -162,10 +160,19 @@ void main() {
         diffuse_factor *= (1.0 - metalness);
         vec3 diffuse = diffuse_factor * base_color;
 
-        Lo += (diffuse + specular) * LIGHT_COLOR;
+        // Calulcate the radiance of this light source.
+        float distance = length(light_pos - frag_pos);
+        float attenuation = 1.0 / (distance * distance);
+        vec3 radiance = LIGHT_COLOR * attenuation;
+
+        Lo += (diffuse + specular) * radiance * NdotL;
     }
 
+    vec3 ambient_color = base_color * vec3(0.03);
     vec3 color = ambient_color + Lo;
+
+    // HDR mapping
+    color = color / (color + vec3(1.0));
 
     // Gamma correction
     color = pow(color, vec3(1.0 / 2.2));

@@ -24,6 +24,7 @@ use vulkano::swapchain::{self, Swapchain, SwapchainCreationError};
 use vulkano::sync::{self, GpuFuture};
 use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
+use winit::dpi::PhysicalSize;
 use winit::event::{
     DeviceEvent, ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
@@ -54,6 +55,7 @@ async fn main() {
     };
 
     let surface = WindowBuilder::new()
+        .with_inner_size(PhysicalSize::new(1560, 980))
         .build_vk_surface(&ev_loop, instance.clone())
         .unwrap();
 
@@ -265,17 +267,6 @@ async fn main() {
                 }
             },
             Event::RedrawEventsCleared => {
-                // Update model rotations
-                // let elapsed = rotation_start.elapsed();
-                // let rotation =
-                //     elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
-                // let rotation = Matrix4::from_angle_x(Rad(rotation as f32));
-                // let rotation = Matrix4::from_axis_angle(Vector3::new(1.0, 0.0, 0.0), Deg(90.0));
-
-                // for draw_info in &draw_infos {
-                //     draw_info.transform.lock().expect("poisoned lock").rotation = rotation;
-                // }
-
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
                 if update_pipeline {
@@ -382,7 +373,7 @@ async fn main() {
                     .begin_render_pass(
                         framebuffers[image_num].clone(),
                         SubpassContents::Inline,
-                        vec![[0.05, 0.05, 0.05, 1.0].into(), 1f32.into()],
+                        vec![[0.03, 0.03, 0.03, 1.0].into(), 1f32.into()],
                     )
                     .unwrap();
 
