@@ -46,7 +46,6 @@ impl Pipeline {
                 .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
                 .vertex_shader(vs.main_entry_point(), ())
                 .triangle_list()
-                .cull_mode_back()
                 .viewports_dynamic_scissors_irrelevant(1)
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],

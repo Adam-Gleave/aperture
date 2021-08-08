@@ -313,7 +313,6 @@ async fn main() {
                 // let eye = [0.3, 0.3, 1.0];
 
                 let uniform_buffer_subbuffer = {
-                    // Note: flipping the cube here, since it was made for OpenGL.
                     let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
                     let proj = cgmath::perspective(
                         Rad(std::f32::consts::FRAC_PI_2),
