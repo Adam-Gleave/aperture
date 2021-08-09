@@ -53,10 +53,11 @@ impl Pipeline {
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
                     dimensions: [dimensions[0] as f32, dimensions[1] as f32],
-                    depth_range: 0.0..1.0,
+                    depth_range: 0.0..0.9,
                 }))
                 .fragment_shader(depth.main_entry_point(), ())
                 .depth_stencil_simple_depth()
+                .cull_mode_back()
                 .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
                 .build(device.clone())
                 .unwrap(),
@@ -118,10 +119,11 @@ impl Pipeline {
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
                     dimensions: [dimensions[0] as f32, dimensions[1] as f32],
-                    depth_range: 0.0..1.0,
+                    depth_range: 0.0..0.99,
                 }))
                 .fragment_shader(fs.main_entry_point(), ())
                 .depth_stencil_simple_depth()
+                .cull_mode_back()
                 .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
                 .with_pipeline_layout(device.clone(), pipeline_layout)
                 .unwrap(),
@@ -146,7 +148,7 @@ impl Pipeline {
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
                     dimensions: [dimensions[0] as f32, dimensions[1] as f32],
-                    depth_range: 0.0..1.0,
+                    depth_range: 0.0..0.99,
                 }))
                 .fragment_shader(fs.main_entry_point(), ())
                 .depth_stencil_simple_depth()

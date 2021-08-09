@@ -1,7 +1,9 @@
+mod camera;
 mod draw_info;
 mod pipelines;
 mod shaders;
 
+use camera::Camera;
 use pipelines::Pipeline;
 use shaders::*;
 
@@ -26,21 +28,19 @@ use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
 use winit::dpi::PhysicalSize;
 use winit::event::{
-    DeviceEvent, ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent,
+    DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 use std::convert::TryInto;
+use std::f32::consts::PI;
 use std::sync::Arc;
-
-const SCALE_STEP: f32 = 1.25;
 
 #[tokio::main]
 async fn main() {
     let (meshes, materials) =
-        renderer_mesh::gltf::load("data/gltf/MetalRoughSpheresNoTextures.glb").unwrap();
-    // let (meshes, mut materials) = renderer_mesh::gltf::load("data/gltf/Box.glb").unwrap();
+        renderer_mesh::gltf::load("data/gltf/DamagedHelmet.glb").unwrap();
 
     println!(
         "Loaded {} meshes, {} materials",
@@ -176,7 +176,7 @@ async fn main() {
                 },
                 depth: {
                     load: Clear,
-                    store: Store,
+                    store: DontCare,
                     format: Format::D16Unorm,
                     samples: 1,
                 }
@@ -201,9 +201,16 @@ async fn main() {
     );
     let mut recreate_swapchain = false;
     let mut update_pipeline = false;
-
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
-    let mut scale = 1.0;
+
+    let mut camera = Camera::new(
+        Point3::new(2.0, 0.5, 2.0),
+        Point3::new(0.0, 0.0, 0.0),
+        Vector3::new(0.0, -1.0, 0.0),
+    );
+
+    let mut left_mouse_down = false;
+    let mut right_mouse_down = false;
 
     let default_material = Material::default();
 
@@ -222,6 +229,21 @@ async fn main() {
                 ..
             } => {
                 recreate_swapchain = true;
+            }
+            Event::WindowEvent {
+                event: WindowEvent::MouseInput {
+                    device_id: _,
+                    state,
+                    button,
+                    ..
+                },
+                ..
+            } => {
+                match button {
+                    MouseButton::Left => left_mouse_down = state == ElementState::Pressed,
+                    MouseButton::Right => right_mouse_down = state == ElementState::Pressed,
+                    _ => {}
+                }
             }
             Event::DeviceEvent {
                 event:
@@ -250,22 +272,29 @@ async fn main() {
             Event::DeviceEvent {
                 event: DeviceEvent::MouseWheel { delta },
                 ..
-            } => match delta {
-                MouseScrollDelta::LineDelta(delta_x, delta_y) => {
-                    if delta_x > 0.0 || delta_y > 0.0 {
-                        scale *= SCALE_STEP;
-                    } else if delta_x < 0.0 || delta_y < 0.0 {
-                        scale /= SCALE_STEP;
-                    }
-                }
-                MouseScrollDelta::PixelDelta(delta) => {
-                    if delta.x > 0.0 || delta.y > 0.0 {
-                        scale *= SCALE_STEP;
-                    } else if delta.x < 0.0 || delta.y < 0.0 {
-                        scale /= SCALE_STEP;
-                    }
-                }
+            } => {
+                let delta_y = match delta {
+                    MouseScrollDelta::LineDelta(_, delta_y) => delta_y,
+                    MouseScrollDelta::PixelDelta(delta) => delta.y as f32,
+                };
+
+                camera.zoom(delta_y);
             },
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion { delta },
+                ..
+            } => {
+                if left_mouse_down {
+                    let theta_x = (2.0 * PI) / dimensions[0] as f32;
+                    let theta_y = PI / dimensions[1] as f32;
+                    let delta_x = delta.0 as f32 * theta_x;
+                    let delta_y = delta.1 as f32 * theta_y;
+
+                    camera.orbit(delta_x, delta_y);
+                } else if right_mouse_down {
+                    camera.translate(delta.0 as f32, delta.1 as f32);
+                }
+            }
             Event::RedrawEventsCleared => {
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
@@ -306,22 +335,13 @@ async fn main() {
                     recreate_swapchain = false;
                 }
 
-                let eye = [0.003, 0.003, 0.01];
-                // let eye = [0.3, 0.3, 1.0];
-
                 let uniform_buffer_subbuffer = {
                     let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
-                    let proj = cgmath::perspective(Deg(60.0), aspect_ratio, 0.00001, 100.0);
-
-                    let view = Matrix4::look_at_rh(
-                        Point3::new(eye[0], eye[1], eye[2]),
-                        Point3::new(0.003, 0.003, 0.0),
-                        Vector3::new(0.0, -1.0, 0.0),
-                    );
-                    let scale_matrix = Matrix4::from_scale(scale);
+                    let proj = cgmath::perspective(Deg(60.0), aspect_ratio, 0.01, 100.0);
+                    let view = camera.view_matrix();
 
                     let uniform_data = vert::ty::Data {
-                        view: Matrix4::from(view * scale_matrix).into(),
+                        view: view.into(),
                         proj: proj.into(),
                     };
 
@@ -331,7 +351,7 @@ async fn main() {
                 let frag_buffer_subbufer = {
                     let frag_data = frag::ty::Data {
                         rotation: Matrix4::one().into(),
-                        view_pos: eye,
+                        view_pos: camera.eye.into(),
                     };
 
                     frag_buffer.next(frag_data).unwrap()
