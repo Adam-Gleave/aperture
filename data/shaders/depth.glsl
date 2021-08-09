@@ -10,10 +10,17 @@ layout(set = 0, binding = 1) uniform Data {
     vec3 view_pos;
 } uniforms;
 
-void main() {
-    float depth = gl_FragCoord.z;
-    depth = 0.1 * 1000.0 / (1000.0 + depth * (0.1 - 1000.0));
-    depth = depth / 10.0;
+const float NEAR = 0.1;
+const float FAR = 10.0;
 
-    f_color = vec4(depth, depth, depth, 1.0);
+float LineariseDepth(float depth) {
+    float z = depth * 2.0 - 1.0;
+    
+    return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));
+}
+
+void main() {
+    float depth = LineariseDepth(gl_FragCoord.z) / FAR;
+
+    f_color = vec4(vec3(depth), 1.0);
 }

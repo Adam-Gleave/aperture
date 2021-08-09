@@ -10,26 +10,35 @@ layout(set = 0, binding = 1) uniform Data {
     vec3 view_pos;
 } uniforms;
 
-const vec3 LIGHTS[4] = vec3[4](
-    vec3(-0.7, 0.08, -0.8),
-    vec3(-0.35, 0.2, 0.6),
-    vec3(0.3, 0.05, 0.2),
-    vec3(-1.87, -1.25, 0.86)
-);
-
-const float PI = 3.1415926538;
-
-const vec3 LIGHT_COLOR = vec3(1.0, 1.0, 1.0);
-
-const float roughness = 0.4;
-const float metalness = 1.0;
-
 layout(push_constant) uniform FragPushConstants {
     layout(offset = 64) vec4 base_color;
     float metalness;
     float roughness;
     float reflectance;
 } push_constants;
+
+const float PI = 3.1415926538;
+
+const int POINT_LIGHT = 0;
+const int SPOT_LIGHT  = 1;
+
+const vec3 LIGHTS[4] = vec3[4](
+    vec3(20, 60, 70),
+    vec3(-9, 2, -4),
+    vec3(-4, -6, 5),
+    vec3(2, 9, -3)
+);
+
+const float ILLUMINANCE_FACTOR[2] = float[2](
+    4 * PI,
+    PI
+);
+
+const float LIGHT_POWER = 800;
+const vec3 LIGHT_COLOR = vec3(1.0, 1.0, 1.0);
+
+const float roughness = 0.4;
+const float metalness = 1.0;
 
 // Calculates the Fresnel-Schlick approximation.
 //
@@ -103,13 +112,6 @@ float Fd_Burley(float NdotV, float NdotL, float LdotH, float alpha) {
     return light_scatter * view_scatter * energy_factor;
 }
 
-// Calculates the Lambertian diffuse factor.
-float lambert(vec3 N, vec3 L) {
-    float result = dot(N, L);
-
-    return max(result, 0.0);
-}
-
 void main() {
     vec3 result = vec3(0.0, 0.0, 0.0);
 
@@ -122,7 +124,7 @@ void main() {
     // V: view vector
     // N: normal
     vec3 V = normalize(uniforms.view_pos - frag_pos);
-    vec3 N = v_normal;
+    vec3 N = normalize(v_normal);
 
     float alpha = roughness * roughness;
 
@@ -170,10 +172,11 @@ void main() {
 
         // Calulcate the radiance of this light source.
         float distance = length(light_pos - frag_pos);
-        float attenuation = 1.0 / (distance * distance);
-        vec3 radiance = LIGHT_COLOR * attenuation;
+        float attenuation = 1.0 / max(distance * distance, 0.01 * 0.01);
+        vec3 light_color = LIGHT_COLOR * LIGHT_POWER / ILLUMINANCE_FACTOR[POINT_LIGHT];
+        vec3 radiance = light_color * attenuation * NdotL;
 
-        Lo += (diffuse + specular) * radiance * NdotL;
+        Lo += (diffuse + specular) * radiance;
     }
 
     vec3 ambient_color = base_color * vec3(0.03);
