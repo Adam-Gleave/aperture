@@ -94,7 +94,7 @@ impl Pipeline {
                         },
                         PipelineLayoutDescPcRange {
                             offset: 64,
-                            size: 24,
+                            size: 28,
                             stages: ShaderStages {
                                 fragment: true,
                                 ..ShaderStages::none()

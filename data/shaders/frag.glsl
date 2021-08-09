@@ -23,12 +23,12 @@ const vec3 LIGHT_COLOR = vec3(1.0, 1.0, 1.0);
 
 const float roughness = 0.4;
 const float metalness = 1.0;
-const float REFLECTANCE = 0.04;
 
 layout(push_constant) uniform FragPushConstants {
     layout(offset = 64) vec4 base_color;
     float metalness;
     float roughness;
+    float reflectance;
 } push_constants;
 
 // Calculates the Fresnel-Schlick approximation.
@@ -60,6 +60,7 @@ float GeometrySchlickGGX(float NdotV, float k) {
     return NdotV / denominator;
 }
 
+// Smith-correlated visibility function. 
 float G_Smith(float NdotV, float NdotL, float alpha) {
     float GGX_L = GeometrySchlickGGX(NdotV, alpha);
     float GGX_V = GeometrySchlickGGX(NdotL, alpha);
@@ -89,12 +90,17 @@ float Fd_Schlick(float u, float F0, float F90) {
     return F0 + (F90 - F0) * pow(1.0 - u, 5.0);
 }
 
+// Calculates the Disney diffuse, with modifications for energy conservation.
 float Fd_Burley(float NdotV, float NdotL, float LdotH, float alpha) {
-    float F90 = 0.5 * 2.0 * alpha * LdotH * LdotH;
+    float energy_bias = mix(0.0, 0.5, alpha);
+    float energy_factor = mix(1.0, 1.0 / 1.51, alpha);
+
+    float F90 = energy_bias + 2.0 * LdotH * LdotH * alpha;
+
     float light_scatter = Fd_Schlick(NdotL, 1.0, F90);
     float view_scatter = Fd_Schlick(NdotV, 1.0, F90);
 
-    return light_scatter * view_scatter * (1.0 / PI);
+    return light_scatter * view_scatter * energy_factor;
 }
 
 // Calculates the Lambertian diffuse factor.
@@ -110,6 +116,8 @@ void main() {
     vec3 base_color = push_constants.base_color.rgb;
     float metalness = clamp(push_constants.metalness, 0.05, 1.0); 
     float roughness = clamp(push_constants.roughness, 0.05, 1.0);
+    float reflectance_clamped = clamp(push_constants.reflectance, 0.0, 1.0);
+    float reflectance = 0.16 * reflectance_clamped * reflectance_clamped;
 
     // V: view vector
     // N: normal
@@ -118,7 +126,7 @@ void main() {
 
     float alpha = roughness * roughness;
 
-    vec3 F0 = vec3(0.04);
+    vec3 F0 = vec3(reflectance);
 
     vec3 specular_color = mix(F0, base_color, metalness);
     F0 = vec3(max(max(specular_color.r, specular_color.g), specular_color.b));

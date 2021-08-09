@@ -393,6 +393,7 @@ async fn main() {
                         base_color: material.base_color_factor.into(),
                         metalness: material.metallic_factor,
                         roughness: material.roughness_factor,
+                        reflectance: material.reflectance,
                     };
 
                     let vert_data = unsafe {
@@ -402,14 +403,14 @@ async fn main() {
                     };
 
                     let frag_data = unsafe {
-                        std::mem::transmute::<frag::ty::FragPushConstants, [u8; 88]>(
+                        std::mem::transmute::<frag::ty::FragPushConstants, [u8; 92]>(
                             frag_push_constants,
                         )
                     };
 
                     let mut data_vec = vert_data.to_vec();
                     data_vec.extend(frag_data.iter().skip(64));
-                    let push_constants: [u8; 88] = data_vec.try_into().unwrap();
+                    let push_constants: [u8; 92] = data_vec.try_into().unwrap();
 
                     if draw_info.has_indices() {
                         builder
