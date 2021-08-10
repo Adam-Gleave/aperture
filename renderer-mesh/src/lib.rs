@@ -1,4 +1,4 @@
-use renderer_common::{Transform, VPosNorm};
+use renderer_common::{Transform, VPosNormTex};
 
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -38,7 +38,7 @@ impl Mesh {
 pub struct Primitive {
     pub index: usize,
     pub material_index: Option<usize>,
-    pub vertices: Vec<VPosNorm>,
+    pub vertices: Vec<VPosNormTex>,
     pub indices: Vec<u32>,
     pub transform: Arc<Mutex<Transform>>,
 }

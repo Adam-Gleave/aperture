@@ -30,6 +30,7 @@ pub struct Textures {
     pub base_color: Option<usize>,
     pub normal: Option<usize>,
     pub metallic_roughness: Option<usize>,
+    pub ao: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -45,7 +46,7 @@ impl Default for Texture {
     fn default() -> Self {
         Self { 
             name: "<Unnamed>".to_string(),
-            format: ImageFormat::R16G16B16,
+            format: ImageFormat::R8G8B8A8,
             pixels: vec![],
             width: 0,
             height: 0,

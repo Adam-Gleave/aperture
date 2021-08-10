@@ -1,4 +1,4 @@
-use crate::{depth, frag, vert, VPosNorm};
+use crate::{depth, frag, vert, VPosNormTex};
 
 use vulkano::descriptor::descriptor::ShaderStages;
 use vulkano::device::Device;
@@ -46,7 +46,7 @@ impl Pipeline {
     ) -> Arc<dyn GraphicsPipelineAbstract + Send + Sync> {
         Arc::new(
             GraphicsPipeline::start()
-                .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
+                .vertex_input(SingleBufferDefinition::<VPosNormTex>::new())
                 .vertex_shader(vs.main_entry_point(), ())
                 .triangle_list()
                 .viewports_dynamic_scissors_irrelevant(1)
@@ -112,7 +112,7 @@ impl Pipeline {
 
         Arc::new(
             GraphicsPipeline::start()
-                .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
+                .vertex_input(SingleBufferDefinition::<VPosNormTex>::new())
                 .vertex_shader(vs.main_entry_point(), ())
                 .triangle_list()
                 .viewports_dynamic_scissors_irrelevant(1)
@@ -140,7 +140,7 @@ impl Pipeline {
     ) -> Arc<dyn GraphicsPipelineAbstract + Send + Sync> {
         Arc::new(
             GraphicsPipeline::start()
-                .vertex_input(SingleBufferDefinition::<VPosNorm>::new())
+                .vertex_input(SingleBufferDefinition::<VPosNormTex>::new())
                 .vertex_shader(vs.main_entry_point(), ())
                 .triangle_list()
                 .polygon_mode_line()

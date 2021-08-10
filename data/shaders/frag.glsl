@@ -1,11 +1,15 @@
 #version 450
 
-layout(location = 0) in vec3 v_normal;
-layout(location = 1) in vec3 frag_pos;
+#define MAX_TEXTURE_COUNT 100
 
-layout(location = 0) out vec4 f_color;
+layout(location = 0) in vec3 frag_pos;
+layout(location = 1) in vec3 v_normal;
+layout(location = 2) in vec2 tex_coord;
+layout(location = 3) in mat4 view;
 
-layout(set = 0, binding = 1) uniform Data {
+layout(set = 0, binding = 1) uniform sampler2DArray textures;
+
+layout(set = 0, binding = 2) uniform Data {
     mat4 rotation;
     vec3 view_pos;
 } uniforms;
@@ -16,6 +20,8 @@ layout(push_constant) uniform FragPushConstants {
     float roughness;
     float reflectance;
 } push_constants;
+
+layout(location = 0) out vec4 f_color;
 
 const float PI = 3.1415926538;
 
@@ -29,12 +35,13 @@ const vec3 LIGHTS[4] = vec3[4](
     vec3(2, 9, -3)
 );
 
+
 const float ILLUMINANCE_FACTOR[2] = float[2](
     4 * PI,
     PI
 );
 
-const float LIGHT_POWER = 800;
+const float LIGHT_POWER = 2400;
 const vec3 LIGHT_COLOR = vec3(1.0, 1.0, 1.0);
 
 const float roughness = 0.4;
@@ -63,7 +70,9 @@ vec3 F_FresnelSchlick(float cosTheta, vec3 F0) {
 // Hence, roughness is accounted for in this calculation. The higher the
 // roughness, the greater the geometric shadowing.
 //
-float GeometrySchlickGGX(float NdotV, float k) {
+float GeometrySchlickGGX(float NdotV, float roughness) {
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
     float denominator = NdotV * (1.0 - k) + k;
 
     return NdotV / denominator;
@@ -112,19 +121,37 @@ float Fd_Burley(float NdotV, float NdotL, float LdotH, float alpha) {
     return light_scatter * view_scatter * energy_factor;
 }
 
+vec3 CalculateNormal() {
+    vec3 tangentNormal = texture(textures, vec3(tex_coord.xy, 4)).xyz * 2.0 - 1.0;
+
+	vec3 q1 = dFdx(frag_pos);
+	vec3 q2 = dFdy(frag_pos);
+	vec2 st1 = dFdx(tex_coord);
+	vec2 st2 = dFdy(tex_coord);
+
+	vec3 N = normalize(v_normal);
+	vec3 T = normalize(q1 * st2.t - q2 * st1.t);
+	vec3 B = -normalize(cross(N, T));
+	mat3 TBN = mat3(T, B, N);
+
+	return normalize(TBN * tangentNormal);
+}
+
 void main() {
     vec3 result = vec3(0.0, 0.0, 0.0);
 
-    vec3 base_color = push_constants.base_color.rgb;
-    float metalness = clamp(push_constants.metalness, 0.05, 1.0); 
-    float roughness = clamp(push_constants.roughness, 0.05, 1.0);
+    vec3 base_color = texture(textures, vec3(tex_coord.xy, 0)).rgb;
+    float ao = texture(textures, vec3(tex_coord.xy, 3)).r;
+    float metalness = texture(textures, vec3(tex_coord.xy, 1)).b;
+    float roughness = texture(textures, vec3(tex_coord.xy, 1)).g;
+
     float reflectance_clamped = clamp(push_constants.reflectance, 0.0, 1.0);
     float reflectance = 0.16 * reflectance_clamped * reflectance_clamped;
 
     // V: view vector
     // N: normal
     vec3 V = normalize(uniforms.view_pos - frag_pos);
-    vec3 N = normalize(v_normal);
+    vec3 N = CalculateNormal();
 
     float alpha = roughness * roughness;
 
@@ -136,7 +163,7 @@ void main() {
     vec3 Lo = vec3(0.0);
 
     for (int i = 0; i < 4; i++) {
-        vec3 light_pos = vec3(uniforms.rotation * vec4(LIGHTS[i], 1.0));
+        vec3 light_pos = vec3(vec4(LIGHTS[i], 1.0) * view);
 
         // L: incident light vector
         // H: half vector
@@ -153,7 +180,7 @@ void main() {
         vec3 F = F_FresnelSchlick(HdotV, F0);
 
         // Geometric shadowing: Smith Schlick-GGX
-        float G = G_Smith(NdotV, NdotL, alpha);
+        float G = G_Smith(NdotV, NdotL, roughness);
 
         // Normal Distribution Function (NDF): GGX
         float D = D_GGX(NdotH, alpha);
@@ -165,8 +192,8 @@ void main() {
         specular *= specular_color;
 
         // Calculate the Disney diffuse contribution.
-        float F90 = 0.5 * 2.0 * alpha * LdotH * LdotH;
-        float diffuse_factor = Fd_Burley(NdotV, NdotL, LdotH, alpha); 
+        float F90 = 0.5 * 2.0 * roughness * LdotH * LdotH;
+        float diffuse_factor = Fd_Burley(NdotV, NdotL, LdotH, roughness); 
         diffuse_factor *= (1.0 - metalness);
         vec3 diffuse = diffuse_factor * base_color;
 
@@ -179,14 +206,7 @@ void main() {
         Lo += (diffuse + specular) * radiance;
     }
 
-    vec3 ambient_color = base_color * vec3(0.03);
-    vec3 color = ambient_color + Lo;
-
-    // HDR mapping
-    color = color / (color + vec3(1.0));
-
-    // Gamma correction
-    color = pow(color, vec3(1.0 / 2.2));
+    vec3 color = Lo * ao;
 
     f_color = vec4(color, 1.0);
 }

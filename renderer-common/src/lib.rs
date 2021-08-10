@@ -1,12 +1,13 @@
 use cgmath::{Matrix4, One};
 
 #[derive(Default, Debug, Clone)]
-pub struct VPosNorm {
+pub struct VPosNormTex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
+    pub uv_coord: [f32; 2],
 }
 
-vulkano::impl_vertex!(VPosNorm, position, normal);
+vulkano::impl_vertex!(VPosNormTex, position, normal, uv_coord);
 
 #[derive(Debug, Clone)]
 pub struct Transform {

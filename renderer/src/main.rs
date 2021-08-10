@@ -7,7 +7,7 @@ use camera::Camera;
 use pipelines::Pipeline;
 use shaders::*;
 
-use renderer_common::VPosNorm;
+use renderer_common::VPosNormTex;
 use renderer_mesh::Material;
 
 use cgmath::{Deg, Matrix4, One, Point3, Vector3};
@@ -18,10 +18,12 @@ use vulkano::command_buffer::{
 use vulkano::descriptor::descriptor_set::PersistentDescriptorSet;
 use vulkano::device::{Device, DeviceExtensions, Features};
 use vulkano::format::Format;
+use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 use vulkano::image::{view::ImageView, AttachmentImage, ImageUsage, SwapchainImage};
 use vulkano::instance::{Instance, PhysicalDevice, PhysicalDeviceType};
 use vulkano::pipeline::GraphicsPipelineAbstract;
 use vulkano::render_pass::{Framebuffer, FramebufferAbstract, RenderPass};
+use vulkano::sampler::Sampler;
 use vulkano::swapchain::{self, Swapchain, SwapchainCreationError};
 use vulkano::sync::{self, GpuFuture};
 use vulkano::Version;
@@ -48,6 +50,8 @@ async fn main() {
         materials.len(),
         textures.len(),
     );
+
+    println!("{:?}", materials[0]);
 
     let ev_loop = EventLoop::new();
     let instance = {
@@ -152,6 +156,26 @@ async fn main() {
         draw_infos.extend(draw_info::generate_from_mesh(device.clone(), &m));
     }
 
+    let (all_pixels, tex_dimensions) = textures.iter().fold((vec![], (0, 0)), |(mut all_pixels, _), texture| {
+        all_pixels.extend(texture.pixels.clone());
+        (all_pixels, (texture.width, texture.height))
+    });
+
+    let (texture_image, texture_future) = ImmutableImage::from_iter(
+        all_pixels.iter().cloned(),
+        ImageDimensions::Dim2d { 
+            width: tex_dimensions.0, 
+            height: tex_dimensions.1, 
+            array_layers: textures.len() as u32,
+        },
+        MipmapsCount::One,
+        Format::R8G8B8A8Unorm,
+        queue.clone(),
+    )
+    .unwrap();
+
+    let texture_image_view = ImageView::new(texture_image).unwrap();
+
     // Now create a uniform buffer for the vertex shader.
     let uniform_buffer =
         CpuBufferPool::<vert::ty::Data>::new(device.clone(), BufferUsage::uniform_buffer());
@@ -202,7 +226,7 @@ async fn main() {
     );
     let mut recreate_swapchain = false;
     let mut update_pipeline = false;
-    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let mut previous_frame_end = Some(texture_future.boxed());
 
     let mut camera = Camera::new(
         Point3::new(2.0, 0.5, 2.0),
@@ -336,6 +360,8 @@ async fn main() {
                     recreate_swapchain = false;
                 }
 
+                // camera.orbit(0.0025, 0.0);
+
                 let uniform_buffer_subbuffer = {
                     let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
                     let proj = cgmath::perspective(Deg(60.0), aspect_ratio, 0.01, 100.0);
@@ -349,7 +375,7 @@ async fn main() {
                     uniform_buffer.next(uniform_data).unwrap()
                 };
 
-                let frag_buffer_subbufer = {
+                let frag_buffer_subbuffer = {
                     let frag_data = frag::ty::Data {
                         rotation: Matrix4::one().into(),
                         view_pos: camera.eye.into(),
@@ -363,10 +389,15 @@ async fn main() {
                     PersistentDescriptorSet::start(layout.clone())
                         .add_buffer(uniform_buffer_subbuffer)
                         .unwrap()
-                        .add_buffer(frag_buffer_subbufer)
+                        .add_sampled_image(
+                            texture_image_view.clone(), 
+                            Sampler::simple_repeat_linear_no_mipmap(device.clone()),
+                        )
+                        .unwrap()
+                        .add_buffer(frag_buffer_subbuffer)
                         .unwrap()
                         .build()
-                        .unwrap(),
+                        .unwrap()
                 );
 
                 let (image_num, suboptimal, acquire_future) =
@@ -394,7 +425,7 @@ async fn main() {
                     .begin_render_pass(
                         framebuffers[image_num].clone(),
                         SubpassContents::Inline,
-                        vec![[0.03, 0.03, 0.03, 1.0].into(), 1f32.into()],
+                        vec![[0.1, 0.1, 0.1, 1.0].into(), 1f32.into()],
                     )
                     .unwrap();
 

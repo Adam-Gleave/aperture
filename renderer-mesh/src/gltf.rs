@@ -1,6 +1,7 @@
 use crate::{Error, Material, Mesh, Primitive, material::{ImageFormat, Texture, Textures}};
 
-use renderer_common::{Transform, VPosNorm};
+use gltf::mesh::util::ReadTexCoords;
+use renderer_common::{Transform, VPosNormTex};
 
 use cgmath::{Matrix4, Quaternion};
 
@@ -49,6 +50,10 @@ fn load_materials(gltf: &gltf::Document, images: &[gltf::image::Data]) -> (Vec<M
             textures.metallic_roughness.replace(texture.texture().index());
         }
 
+        if let Some(texture) = m.occlusion_texture() {
+            textures.ao.replace(texture.texture().index());
+        }
+
         material.textures = textures;
         materials.push(material);
     }
@@ -70,10 +75,28 @@ fn load_textures(
         let image = images.get(idx).expect("could not find image given by texture index");
 
         let mut texture = Texture::default();
-        texture.pixels = image.pixels.to_vec();
         texture.format = format(image.format);
         texture.width = image.width;
         texture.height = image.height;
+
+        let pixels_rgba = image.pixels.chunks(3).map(|rgb| {
+            [
+                rgb[0],
+                rgb[1],
+                rgb[2],
+                255,
+            ]
+        });
+
+        let mut pixels_u8 = vec![];
+        for rgba in pixels_rgba {
+            pixels_u8.push(rgba[0]);
+            pixels_u8.push(rgba[1]);
+            pixels_u8.push(rgba[2]);
+            pixels_u8.push(rgba[3]);
+        }
+
+        texture.pixels = pixels_u8;
 
         textures.push(texture);
     }
@@ -140,12 +163,36 @@ fn load_nodes<'a>(
                         return Err(Error::MismatchedVerticesNormals);
                     }
 
+                    let coords = if let Some(coords) = reader.read_tex_coords(0) {
+                        // FIXME: convert all to f32 for now.
+                        match coords {
+                            ReadTexCoords::U8(uv) => { 
+                                uv
+                                    .map(|arr| [arr[0] as f32, arr[1] as f32])
+                                    .collect::<Vec<_>>()
+                            },
+                            ReadTexCoords::U16(uv) => {
+                                uv
+                                    .map(|arr| [arr[0] as f32, arr[1] as f32])
+                                    .collect::<Vec<_>>()
+                            },
+                            ReadTexCoords::F32(uv) => {
+                                uv
+                                    .collect::<Vec<_>>()
+                            }
+                        }
+                    } else {
+                        vec![]
+                    };
+
                     let vertices = positions
                         .iter()
                         .zip(normals.iter())
-                        .map(|(p, n)| VPosNorm {
+                        .zip(coords.iter())
+                        .map(|((p, n), c)| VPosNormTex {
                             position: *p,
                             normal: *n,
+                            uv_coord: *c,
                         })
                         .collect::<Vec<_>>();
 

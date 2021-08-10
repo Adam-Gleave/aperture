@@ -1,6 +1,6 @@
 use cgmath::Matrix4;
 
-use renderer_common::{Transform, VPosNorm};
+use renderer_common::{Transform, VPosNormTex};
 use renderer_mesh::Mesh;
 
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
@@ -9,7 +9,7 @@ use vulkano::device::Device;
 use std::sync::{Arc, Mutex};
 
 pub struct DrawInfo {
-    pub vertex_buffer: Arc<CpuAccessibleBuffer<[VPosNorm]>>,
+    pub vertex_buffer: Arc<CpuAccessibleBuffer<[VPosNormTex]>>,
     pub index_buffer: Option<Arc<CpuAccessibleBuffer<[u32]>>>,
     pub transform: Arc<Mutex<Transform>>,
     pub material_index: i32,
