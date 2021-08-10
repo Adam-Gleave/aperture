@@ -39,13 +39,14 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let (meshes, materials) =
+    let (meshes, materials, textures) =
         renderer_mesh::gltf::load("data/gltf/DamagedHelmet.glb").unwrap();
 
     println!(
-        "Loaded {} meshes, {} materials",
+        "Loaded {} meshes, {} materials, {} textures",
         meshes.len(),
-        materials.len()
+        materials.len(),
+        textures.len(),
     );
 
     let ev_loop = EventLoop::new();
