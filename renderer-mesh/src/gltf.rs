@@ -1,4 +1,4 @@
-use crate::{Error, Material, Mesh, Primitive};
+use crate::{Error, Material, Mesh, Primitive, material::{ImageFormat, Texture, Textures}};
 
 use renderer_common::{Transform, VPosNorm};
 
@@ -6,21 +6,23 @@ use cgmath::{Matrix4, Quaternion};
 
 use std::{fmt::Debug, path::Path};
 
-pub fn load<P>(path: P) -> Result<(Vec<Mesh>, Vec<Material>), Error>
+pub fn load<P>(path: P) -> Result<(Vec<Mesh>, Vec<Material>, Vec<Texture>), Error>
 where
     P: AsRef<Path> + Clone + Debug,
 {
-    let (document, buffers, _images) = gltf::import(path.clone())
+    let (document, buffers, images) = gltf::import(path.clone())
         .map_err(|_| Error::NoSuchFile(path.as_ref().as_os_str().to_owned()))?;
 
-    let materials = load_materials(&document).collect::<Vec<_>>();
+    let (materials, textures) = load_materials(&document, &images);
     let meshes = load_nodes(&document, &buffers)?.collect::<Vec<_>>();
 
-    Ok((meshes, materials))
+    Ok((meshes, materials, textures))
 }
 
-fn load_materials<'a>(gltf: &'a gltf::Document) -> impl Iterator<Item = Material> + 'a {
-    gltf.materials().map(|m| {
+fn load_materials(gltf: &gltf::Document, images: &[gltf::image::Data]) -> (Vec<Material>, Vec<Texture>) {
+    let mut materials = vec![];
+
+    for m in gltf.materials() {
         let mut material = Material::default();
 
         if let Some(name) = m.name() {
@@ -33,8 +35,65 @@ fn load_materials<'a>(gltf: &'a gltf::Document) -> impl Iterator<Item = Material
         material.roughness_factor = pbr.roughness_factor();
         material.emissive_factor = m.emissive_factor().into();
 
-        material
-    })
+        let mut textures = Textures::default();
+
+        if let Some(texture) = pbr.base_color_texture() {
+            textures.base_color.replace(texture.texture().index());
+        }
+
+        if let Some(texture) = m.normal_texture() {
+            textures.normal.replace(texture.texture().index());
+        }
+
+        if let Some(texture) = pbr.metallic_roughness_texture() {
+            textures.metallic_roughness.replace(texture.texture().index());
+        }
+
+        material.textures = textures;
+        materials.push(material);
+    }
+    
+    let textures = load_textures(gltf, images);
+    load_textures(gltf, images);
+
+    (materials, textures)
+}
+
+fn load_textures(
+    gltf: &gltf::Document, 
+    images: &[gltf::image::Data],
+) -> Vec<Texture> {
+    let mut textures = vec![];
+
+    for t in gltf.textures() {
+        let idx = t.source().index();
+        let image = images.get(idx).expect("could not find image given by texture index");
+
+        let mut texture = Texture::default();
+        texture.pixels = image.pixels.to_vec();
+        texture.format = format(image.format);
+        texture.width = image.width;
+        texture.height = image.height;
+
+        textures.push(texture);
+    }
+
+    textures
+}
+
+fn format(f: gltf::image::Format) -> ImageFormat {
+    match f {
+        gltf::image::Format::R8 => ImageFormat::R8,
+        gltf::image::Format::R8G8 => ImageFormat::R8G8,
+        gltf::image::Format::R8G8B8 => ImageFormat::R8G8B8,
+        gltf::image::Format::R8G8B8A8 => ImageFormat::R8G8B8A8,
+        gltf::image::Format::B8G8R8 => ImageFormat::B8G8R8,
+        gltf::image::Format::B8G8R8A8 => ImageFormat::B8G8R8A8,
+        gltf::image::Format::R16 => ImageFormat::R16,
+        gltf::image::Format::R16G16 => ImageFormat::R16G16,
+        gltf::image::Format::R16G16B16 => ImageFormat::R16G16B16,
+        gltf::image::Format::R16G16B16A16 => ImageFormat::R16G16B16A16,
+    }
 }
 
 fn load_nodes<'a>(
