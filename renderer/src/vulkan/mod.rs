@@ -1,5 +1,3 @@
-mod pipelines;
+mod pipeline;
 
-pub mod shaders;
-
-pub use pipelines::Pipeline;
+pub use pipeline::Pipeline;
