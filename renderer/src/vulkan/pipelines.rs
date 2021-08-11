@@ -1,4 +1,4 @@
-use crate::{depth, frag, vert, VPosNormTex};
+use crate::{vulkan::shaders::{depth, frag, vert}, VPosNormTex};
 
 use vulkano::descriptor::descriptor::ShaderStages;
 use vulkano::device::Device;

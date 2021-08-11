@@ -1,11 +1,8 @@
-mod camera;
-mod draw_info;
-mod pipelines;
-mod shaders;
+mod render;
+mod vulkan;
 
-use camera::Camera;
-use pipelines::Pipeline;
-use shaders::*;
+use render::{draw_info, Camera};
+use vulkan::{shaders::*, Pipeline};
 
 use renderer_common::VPosNormTex;
 use renderer_mesh::Material;
