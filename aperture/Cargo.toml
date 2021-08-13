@@ -1,11 +1,11 @@
 [package]
-name = "renderer"
+name = "aperture"
 version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-renderer-common = { path = "../renderer-common" }
-renderer-mesh = { path = "../renderer-mesh" }
+aperture-common = { path = "../aperture-common" }
+aperture-mesh = { path = "../aperture-mesh" }
 
 cgmath = "0.18"
 tokio = { version = "1.9", features = [ "full" ] }

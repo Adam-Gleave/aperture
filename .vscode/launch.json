@@ -1,0 +1,83 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'renderer'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=renderer",
+                    "--package=renderer"
+                ],
+                "filter": {
+                    "name": "renderer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'renderer'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=renderer",
+                    "--package=renderer"
+                ],
+                "filter": {
+                    "name": "renderer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'renderer-common'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=renderer-common"
+                ],
+                "filter": {
+                    "name": "renderer-common",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'renderer-mesh'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=renderer-mesh"
+                ],
+                "filter": {
+                    "name": "renderer-mesh",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

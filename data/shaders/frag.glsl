@@ -7,9 +7,12 @@ layout(location = 1) in vec3 v_normal;
 layout(location = 2) in vec2 tex_coord;
 layout(location = 3) in mat4 view;
 
-layout(set = 0, binding = 1) uniform sampler2DArray textures;
+layout(set = 0, binding = 1) uniform sampler2D base_color_tex;
+layout(set = 0, binding = 2) uniform sampler2D normal_tex;
+layout(set = 0, binding = 3) uniform sampler2D metal_rough_tex;
+layout(set = 0, binding = 4) uniform sampler2D ao_tex;
 
-layout(set = 0, binding = 2) uniform Data {
+layout(set = 0, binding = 5) uniform Data {
     mat4 rotation;
     vec3 view_pos;
 } uniforms;
@@ -122,7 +125,7 @@ float Fd_Burley(float NdotV, float NdotL, float LdotH, float alpha) {
 }
 
 vec3 CalculateNormal() {
-    vec3 tangentNormal = texture(textures, vec3(tex_coord.xy, 4)).xyz * 2.0 - 1.0;
+    vec3 tangentNormal = texture(normal_tex, tex_coord.xy).xyz * 2.0 - 1.0;
 
 	vec3 q1 = dFdx(frag_pos);
 	vec3 q2 = dFdy(frag_pos);
@@ -140,10 +143,10 @@ vec3 CalculateNormal() {
 void main() {
     vec3 result = vec3(0.0, 0.0, 0.0);
 
-    vec3 base_color = texture(textures, vec3(tex_coord.xy, 0)).rgb;
-    float ao = texture(textures, vec3(tex_coord.xy, 3)).r;
-    float metalness = texture(textures, vec3(tex_coord.xy, 1)).b;
-    float roughness = texture(textures, vec3(tex_coord.xy, 1)).g;
+    vec3 base_color = texture(base_color_tex, tex_coord.xy).rgb;
+    float metalness = texture(metal_rough_tex, tex_coord.xy).b;
+    float roughness = texture(metal_rough_tex, tex_coord.xy).g;
+    float ao = texture(ao_tex, tex_coord.xy).r;
 
     float reflectance_clamped = clamp(push_constants.reflectance, 0.0, 1.0);
     float reflectance = 0.16 * reflectance_clamped * reflectance_clamped;

@@ -1,4 +1,4 @@
-use renderer_common::{Transform, VPosNormTex};
+use aperture_common::{Transform, VPosNormTex};
 
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -10,7 +10,7 @@ mod obj;
 pub mod gltf;
 
 pub use error::Error;
-pub use material::Material;
+pub use material::{Material, Texture, TextureSet};
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -21,7 +21,7 @@ pub struct Mesh {
 impl Default for Mesh {
     fn default() -> Self {
         Self {
-            name: "<Unnamed>".to_string(),
+            name: "Unnamed".to_string(),
             primitives: vec![],
         }
     }
@@ -37,7 +37,7 @@ impl Mesh {
 #[derive(Debug, Default)]
 pub struct Primitive {
     pub index: usize,
-    pub material_index: Option<usize>,
+    pub material_name: Option<String>,
     pub vertices: Vec<VPosNormTex>,
     pub indices: Vec<u32>,
     pub transform: Arc<Mutex<Transform>>,

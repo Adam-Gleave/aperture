@@ -48,6 +48,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "aperture"
+version = "0.1.0"
+dependencies = [
+ "aperture-common",
+ "aperture-mesh",
+ "cgmath",
+ "tokio",
+ "vulkano",
+ "vulkano-shaders",
+ "vulkano-win",
+ "winit",
+]
+
+[[package]]
+name = "aperture-common"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "vulkano",
+]
+
+[[package]]
+name = "aperture-mesh"
+version = "0.1.0"
+dependencies = [
+ "aperture-common",
+ "cgmath",
+ "gltf",
+ "tobj",
+]
+
+[[package]]
 name = "approx"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1083,38 +1115,6 @@ name = "regex-syntax"
 version = "0.6.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
-
-[[package]]
-name = "renderer"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "renderer-common",
- "renderer-mesh",
- "tokio",
- "vulkano",
- "vulkano-shaders",
- "vulkano-win",
- "winit",
-]
-
-[[package]]
-name = "renderer-common"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "vulkano",
-]
-
-[[package]]
-name = "renderer-mesh"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "gltf",
- "renderer-common",
- "tobj",
-]
 
 [[package]]
 name = "rusttype"

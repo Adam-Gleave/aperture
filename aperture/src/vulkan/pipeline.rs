@@ -1,14 +1,14 @@
 use crate::render::shaders::*;
 
-use renderer_common::VPosNormTex;
+use aperture_common::VPosNormTex;
 
 use vulkano::descriptor::descriptor::ShaderStages;
 use vulkano::device::Device;
+use vulkano::pipeline::layout::{PipelineLayout, PipelineLayoutDesc, PipelineLayoutDescPcRange};
 use vulkano::pipeline::shader::EntryPointAbstract;
 use vulkano::pipeline::vertex::SingleBufferDefinition;
 use vulkano::pipeline::viewport::Viewport;
 use vulkano::pipeline::{GraphicsPipeline, GraphicsPipelineAbstract};
-use vulkano::pipeline::layout::{PipelineLayout, PipelineLayoutDesc, PipelineLayoutDescPcRange};
 use vulkano::render_pass::{RenderPass, Subpass};
 
 use std::iter;
@@ -28,7 +28,7 @@ impl Pipeline {
         render_pass: Arc<RenderPass>,
     ) -> Arc<dyn GraphicsPipelineAbstract + Send + Sync> {
         match self {
-            Self::Shaded => self.shaded(device, dimensions, shaders, render_pass)
+            Self::Shaded => self.shaded(device, dimensions, shaders, render_pass),
         }
     }
 
@@ -41,7 +41,7 @@ impl Pipeline {
     ) -> Arc<dyn GraphicsPipelineAbstract + Send + Sync> {
         let pipeline_layout_desc = {
             let stages = vec![
-                shaders.vertex.main_entry_point(), 
+                shaders.vertex.main_entry_point(),
                 shaders.fragment.main_entry_point(),
             ];
 

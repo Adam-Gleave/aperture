@@ -1,11 +1,14 @@
-use crate::{Error, Material, Mesh, Primitive, material::{ImageFormat, Texture, Textures}};
+use crate::{
+    material::{ImageFormat, Texture, TextureSet},
+    Error, Material, Mesh, Primitive,
+};
 
+use aperture_common::{Transform, VPosNormTex};
 use gltf::mesh::util::ReadTexCoords;
-use renderer_common::{Transform, VPosNormTex};
 
 use cgmath::{Matrix4, Quaternion};
 
-use std::{fmt::Debug, path::Path};
+use std::{collections::HashSet, fmt::Debug, path::Path};
 
 pub fn load<P>(path: P) -> Result<(Vec<Mesh>, Vec<Material>, Vec<Texture>), Error>
 where
@@ -14,79 +17,82 @@ where
     let (document, buffers, images) = gltf::import(path.clone())
         .map_err(|_| Error::NoSuchFile(path.as_ref().as_os_str().to_owned()))?;
 
-    let (materials, textures) = load_materials(&document, &images);
-    let meshes = load_nodes(&document, &buffers)?.collect::<Vec<_>>();
+    let textures = load_textures(&document, &images);
+    let materials = load_materials(&document, &textures);
+    let meshes = load_nodes(&document, &buffers, &materials)?.collect::<Vec<_>>();
 
     Ok((meshes, materials, textures))
 }
 
-fn load_materials(gltf: &gltf::Document, images: &[gltf::image::Data]) -> (Vec<Material>, Vec<Texture>) {
-    let mut materials = vec![];
+fn load_materials(gltf: &gltf::Document, textures: &[Texture]) -> Vec<Material> {
+    gltf.materials()
+        .map(|m| {
+            let mut material = Material::default();
 
-    for m in gltf.materials() {
-        let mut material = Material::default();
+            if let Some(name) = m.name() {
+                material.name = name.to_string();
+            }
 
-        if let Some(name) = m.name() {
-            material.name = name.to_string();
-        }
+            let pbr = m.pbr_metallic_roughness();
+            material.base_color_factor = pbr.base_color_factor().into();
+            material.metallic_factor = pbr.metallic_factor();
+            material.roughness_factor = pbr.roughness_factor();
+            material.emissive_factor = m.emissive_factor().into();
 
-        let pbr = m.pbr_metallic_roughness();
-        material.base_color_factor = pbr.base_color_factor().into();
-        material.metallic_factor = pbr.metallic_factor();
-        material.roughness_factor = pbr.roughness_factor();
-        material.emissive_factor = m.emissive_factor().into();
+            let mut texture_set = TextureSet::default();
 
-        let mut textures = Textures::default();
+            if let Some(t) = pbr.base_color_texture() {
+                let i = t.texture().index();
+                texture_set.base_color.replace(textures[i].name.clone());
+            }
 
-        if let Some(texture) = pbr.base_color_texture() {
-            textures.base_color.replace(texture.texture().index());
-        }
+            if let Some(t) = m.normal_texture() {
+                let i = t.texture().index();
+                texture_set.normal.replace(textures[i].name.clone());
+            }
 
-        if let Some(texture) = m.normal_texture() {
-            textures.normal.replace(texture.texture().index());
-        }
+            if let Some(t) = pbr.metallic_roughness_texture() {
+                let i = t.texture().index();
+                texture_set
+                    .metallic_roughness
+                    .replace(textures[i].name.clone());
+            }
 
-        if let Some(texture) = pbr.metallic_roughness_texture() {
-            textures.metallic_roughness.replace(texture.texture().index());
-        }
+            if let Some(t) = m.occlusion_texture() {
+                let i = t.texture().index();
+                texture_set.ao.replace(textures[i].name.clone());
+            }
 
-        if let Some(texture) = m.occlusion_texture() {
-            textures.ao.replace(texture.texture().index());
-        }
-
-        material.textures = textures;
-        materials.push(material);
-    }
-    
-    let textures = load_textures(gltf, images);
-    load_textures(gltf, images);
-
-    (materials, textures)
+            material.textures = texture_set;
+            material
+        })
+        .collect()
 }
 
-fn load_textures(
-    gltf: &gltf::Document, 
-    images: &[gltf::image::Data],
-) -> Vec<Texture> {
+fn load_textures(gltf: &gltf::Document, images: &[gltf::image::Data]) -> Vec<Texture> {
     let mut textures = vec![];
+    let mut texture_names = HashSet::new();
 
     for t in gltf.textures() {
         let idx = t.source().index();
-        let image = images.get(idx).expect("could not find image given by texture index");
+        let image = images
+            .get(idx)
+            .expect("could not find image given by texture index");
 
         let mut texture = Texture::default();
+
+        if let Some(name) = t.name() {
+            texture.name = name.to_string();
+        }
+
         texture.format = format(image.format);
         texture.width = image.width;
         texture.height = image.height;
 
-        let pixels_rgba = image.pixels.chunks(3).map(|rgb| {
-            [
-                rgb[0],
-                rgb[1],
-                rgb[2],
-                255,
-            ]
-        });
+        let pixels_rgba = image
+            .pixels
+            .chunks(3)
+            .map(|rgb| [rgb[0], rgb[1], rgb[2], 255]);
 
         let mut pixels_u8 = vec![];
         for rgba in pixels_rgba {
@@ -97,6 +103,18 @@ fn load_textures(
         }
 
         texture.pixels = pixels_u8;
+
+        // FIXME unoptimised
+        let mut count = 1;
+        let mut name = texture.name.clone();
+
+        while texture_names.contains(&name) {
+            name = format!("{}_{}", &texture.name, count.to_string());
+            count += 1;
+        }
+
+        texture_names.insert(name.clone());
+        texture.name = name;
 
         textures.push(texture);
     }
@@ -122,6 +140,7 @@ fn format(f: gltf::image::Format) -> ImageFormat {
 fn load_nodes<'a>(
     gltf: &'a gltf::Document,
     buffers: &[gltf::buffer::Data],
+    materials: &[Material],
 ) -> Result<impl Iterator<Item = Mesh> + 'a, Error> {
     Ok(gltf
         .nodes()
@@ -166,20 +185,13 @@ fn load_nodes<'a>(
                     let coords = if let Some(coords) = reader.read_tex_coords(0) {
                         // FIXME: convert all to f32 for now.
                         match coords {
-                            ReadTexCoords::U8(uv) => { 
-                                uv
-                                    .map(|arr| [arr[0] as f32, arr[1] as f32])
-                                    .collect::<Vec<_>>()
-                            },
-                            ReadTexCoords::U16(uv) => {
-                                uv
-                                    .map(|arr| [arr[0] as f32, arr[1] as f32])
-                                    .collect::<Vec<_>>()
-                            },
-                            ReadTexCoords::F32(uv) => {
-                                uv
-                                    .collect::<Vec<_>>()
-                            }
+                            ReadTexCoords::U8(uv) => uv
+                                .map(|arr| [arr[0] as f32, arr[1] as f32])
+                                .collect::<Vec<_>>(),
+                            ReadTexCoords::U16(uv) => uv
+                                .map(|arr| [arr[0] as f32, arr[1] as f32])
+                                .collect::<Vec<_>>(),
+                            ReadTexCoords::F32(uv) => uv.collect::<Vec<_>>(),
                         }
                     } else {
                         vec![]
@@ -204,7 +216,10 @@ fn load_nodes<'a>(
                     let mut primitive = Primitive::default();
                     primitive.vertices = vertices;
                     primitive.indices = indices;
-                    primitive.material_index = p.material().index();
+
+                    if let Some(index) = p.material().index() {
+                        primitive.material_name = Some(materials[index].name.clone());
+                    }
 
                     primitive.set_transform(transform.clone());
 

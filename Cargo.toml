@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "renderer",
-    "renderer-common",
-    "renderer-mesh",
+    "aperture",
+    "aperture-common",
+    "aperture-mesh",
 ]
