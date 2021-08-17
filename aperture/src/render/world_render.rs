@@ -17,11 +17,14 @@ use vulkano::{image::ImageViewAbstract, sampler::Sampler};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use super::environment::Environment;
+
 #[derive(Default)]
 pub struct WorldRender {
     pub primitive_info: Vec<PrimitiveInfo>,
     pub material_info: HashMap<String, MaterialInfo>,
     pub image_samplers: HashMap<String, ImageData>,
+    pub environment: Option<Environment>,
 }
 
 impl WorldRender {
@@ -29,7 +32,7 @@ impl WorldRender {
         &mut self,
         meshes: impl Iterator<Item = &'a Mesh>,
         materials: impl Iterator<Item = &'a Material>,
-        textures: impl Iterator<Item = &'a Texture>,
+        textures: impl Iterator<Item = &'a Texture<u8>>,
         pipeline_type: Pipeline,
         pipeline: Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
         device: Arc<Device>,
@@ -38,6 +41,15 @@ impl WorldRender {
         self.gen_samplers(textures, device.clone(), queue.clone());
         self.gen_primitive_info(meshes, device.clone());
         self.gen_material_info(materials, pipeline_type, pipeline.clone(), device.clone());
+    }
+
+    pub fn update_environment(
+        &mut self,
+        pipeline: Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
+        device: Arc<Device>,
+        queue: Arc<Queue>,
+    ) {
+        self.environment = Some(Environment::new(pipeline, device, queue));
     }
 
     fn gen_primitive_info<'a>(
@@ -76,7 +88,7 @@ impl WorldRender {
 
     fn gen_samplers<'a>(
         &mut self,
-        textures: impl Iterator<Item = &'a Texture>,
+        textures: impl Iterator<Item = &'a Texture<u8>>,
         device: Arc<Device>,
         queue: Arc<Queue>,
     ) {
@@ -84,7 +96,13 @@ impl WorldRender {
             if !self.image_samplers.contains_key(&texture.name) {
                 self.image_samplers.insert(
                     texture.name.clone(),
-                    ImageData::new(&texture, device.clone(), queue.clone()),
+                    ImageData::new(
+                        &texture, 
+                        // FIXME
+                        Format::R8G8B8A8Unorm,
+                        device.clone(),
+                        queue.clone(),
+                    ),
                 );
             }
         }
@@ -228,6 +246,8 @@ impl MaterialInfo {
                     .with_vertex_uniform_buffer(vertex_uniform_buffer.clone())
                     .with_fragment_uniform_buffer(fragment_uniform_buffer.clone())
             }
+            // TODO probably need to re-work this.
+            _ => unimplemented!()
         };
 
         Self {
@@ -243,7 +263,12 @@ pub struct ImageData {
 }
 
 impl ImageData {
-    fn new(texture: &Texture, device: Arc<Device>, queue: Arc<Queue>) -> Self {
+    fn new(
+        texture: &Texture<u8>,
+        format: Format,
+        device: Arc<Device>,
+        queue: Arc<Queue>,
+    ) -> Self {
         let (image, _) = ImmutableImage::from_iter(
             texture.pixels.iter().cloned(),
             ImageDimensions::Dim2d {
@@ -252,7 +277,7 @@ impl ImageData {
                 array_layers: 1,
             },
             MipmapsCount::One,
-            Format::R8G8B8A8Unorm,
+            format,
             queue.clone(),
         )
         .unwrap();

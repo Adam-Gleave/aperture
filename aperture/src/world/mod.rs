@@ -1,3 +1,4 @@
+pub mod cube;
 pub mod light;
 
 use aperture_mesh::*;
@@ -13,7 +14,7 @@ use self::light::PointLight;
 pub struct World {
     pub meshes: HashMap<String, Mesh>,
     pub materials: HashMap<String, Material>,
-    pub textures: HashMap<String, Texture>,
+    pub textures: HashMap<String, Texture<u8>>,
     pub default_material: Material,
     pub lights: Vec<PointLight>,
 }

@@ -10,7 +10,7 @@ use cgmath::{Matrix4, Quaternion};
 
 use std::{collections::HashSet, fmt::Debug, path::Path};
 
-pub fn load<P>(path: P) -> Result<(Vec<Mesh>, Vec<Material>, Vec<Texture>), Error>
+pub fn load<P>(path: P) -> Result<(Vec<Mesh>, Vec<Material>, Vec<Texture<u8>>), Error>
 where
     P: AsRef<Path> + Clone + Debug,
 {
@@ -24,7 +24,7 @@ where
     Ok((meshes, materials, textures))
 }
 
-fn load_materials(gltf: &gltf::Document, textures: &[Texture]) -> Vec<Material> {
+fn load_materials(gltf: &gltf::Document, textures: &[Texture<u8>]) -> Vec<Material> {
     gltf.materials()
         .map(|m| {
             let mut material = Material::default();
@@ -69,7 +69,7 @@ fn load_materials(gltf: &gltf::Document, textures: &[Texture]) -> Vec<Material> 
         .collect()
 }
 
-fn load_textures(gltf: &gltf::Document, images: &[gltf::image::Data]) -> Vec<Texture> {
+fn load_textures(gltf: &gltf::Document, images: &[gltf::image::Data]) -> Vec<Texture<u8>> {
     let mut textures = vec![];
     let mut texture_names = HashSet::new();
 

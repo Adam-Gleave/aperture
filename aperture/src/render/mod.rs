@@ -1,5 +1,6 @@
 mod base;
 mod camera;
+mod environment;
 mod world_render;
 
 pub mod shaders;
@@ -19,7 +20,6 @@ use vulkano::sync::{self, GpuFuture};
 use winit::event_loop::EventLoop;
 
 use std::convert::TryInto;
-
 
 pub struct Renderer {
     pub base: VulkanBase,
@@ -60,6 +60,12 @@ impl Renderer {
             world.textures.values(),
             self.base.pipeline_type,
             self.base.pipeline.clone(),
+            self.base.device.clone(),
+            self.base.queue.clone(),
+        );
+
+        self.world_render.update_environment(
+            self.base.environment_pipeline.clone(),
             self.base.device.clone(),
             self.base.queue.clone(),
         );
@@ -130,14 +136,25 @@ impl Renderer {
         ];
 
         for (i, l) in world.lights.iter().enumerate() {
-            println!("{:?}", l);
-
             point_lights[i] = 
                 frag::ty::PointLight {
                     position: l.position(),
                     color: l.color(),
                     power: l.power(),
                 };
+        }
+
+        // Update environment uniform buffers.
+        if let Some(environment) = &self.world_render.environment {
+            builder
+                .update_buffer(
+                    environment.uniform_buffer.clone(),
+                    std::sync::Arc::new(cube_vert::ty::Data {
+                        proj: proj.into(),
+                        view: view.into(),
+                    }),
+                )
+                .unwrap();
         }
 
         // Update uniform buffers.
@@ -240,6 +257,22 @@ impl Renderer {
                     )
                     .unwrap();
             }
+        }
+
+        // Draw the environment cube.
+        if let Some(environment) = &self.world_render.environment {
+            println!("{}", environment.vertex_buffer.size());
+
+            builder
+                .draw(
+                    self.base.environment_pipeline.clone(),
+                    &DynamicState::none(),
+                    vec![environment.vertex_buffer.clone()],
+                    environment.set.clone(),
+                    (),
+                    vec![],
+                )
+                .unwrap();
         }
 
         builder.end_render_pass().unwrap();

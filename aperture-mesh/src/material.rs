@@ -34,15 +34,15 @@ pub struct TextureSet {
 }
 
 #[derive(Debug)]
-pub struct Texture {
+pub struct Texture<P> {
     pub name: String,
     pub format: ImageFormat,
-    pub pixels: Vec<u8>,
+    pub pixels: Vec<P>,
     pub width: u32,
     pub height: u32,
 }
 
-impl Default for Texture {
+impl<P> Default for Texture<P> {
     fn default() -> Self {
         Self {
             name: "Unnamed".to_string(),
@@ -66,4 +66,6 @@ pub enum ImageFormat {
     R16G16,
     R16G16B16,
     R16G16B16A16,
+    R32G32B32,
+    R32G32B32A32,
 }

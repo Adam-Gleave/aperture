@@ -28,8 +28,10 @@ pub struct VulkanBase {
     pub swapchain_images: Vec<Arc<SwapchainImage<Window>>>,
     pub queue: Arc<Queue>,
     pub render_pass: Arc<RenderPass>,
+    // TODO do we need pre-load all pipelines?
     pub pipeline_type: Pipeline,
     pub pipeline: Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
+    pub environment_pipeline: Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
     pub framebuffers: Vec<Arc<dyn FramebufferAbstract + Send + Sync>>,
 
     pub shaders: Shaders,
@@ -122,6 +124,7 @@ impl VulkanBase {
 
             // Choose the internal format of the images.
             let format = caps.supported_formats[0].0;
+            println!("Formats: {:?}", caps.supported_formats);
 
             Swapchain::start(device.clone(), surface.clone())
                 .num_images(caps.min_image_count)
@@ -182,6 +185,13 @@ impl VulkanBase {
         )
         .unwrap();
 
+        let environment_pipeline = Pipeline::Cubemap.create(
+            device.clone(),
+            images[0].dimensions(),
+            &shaders,
+            render_pass.clone(),
+        );
+
         (
             Self {
                 instance,
@@ -193,6 +203,7 @@ impl VulkanBase {
                 queue,
                 pipeline_type,
                 pipeline,
+                environment_pipeline,
                 framebuffers,
                 shaders,
                 recreate_swapchain: false,

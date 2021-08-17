@@ -10,7 +10,7 @@ mod obj;
 pub mod gltf;
 
 pub use error::Error;
-pub use material::{Material, Texture, TextureSet};
+pub use material::{ImageFormat, Material, Texture, TextureSet};
 
 #[derive(Debug)]
 pub struct Mesh {
