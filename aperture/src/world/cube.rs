@@ -36,10 +36,10 @@ impl Cube {
         VPos { position: [-1.0, -1.0, -1.0] },
         
         VPos { position: [-1.0,  1.0,  1.0] },
-        VPos { position: [-1.0,  1.0,  1.0] },
+        VPos { position: [-1.0, -1.0,  1.0] },
+        VPos { position: [ 1.0, -1.0,  1.0] },
         VPos { position: [ 1.0,  1.0,  1.0] },
-        VPos { position: [ 1.0,  1.0,  1.0] },
-        VPos { position: [ 1.0,  1.0,  1.0] },
+        VPos { position: [ 1.0, -1.0, -1.0] },
         VPos { position: [ 1.0,  1.0, -1.0] },
         
         VPos { position: [ 1.0, -1.0, -1.0] },

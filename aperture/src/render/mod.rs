@@ -261,8 +261,6 @@ impl Renderer {
 
         // Draw the environment cube.
         if let Some(environment) = &self.world_render.environment {
-            println!("{}", environment.vertex_buffer.size());
-
             builder
                 .draw(
                     self.base.environment_pipeline.clone(),
