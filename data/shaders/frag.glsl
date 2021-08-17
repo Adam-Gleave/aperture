@@ -1,6 +1,6 @@
 #version 450
 
-#define MAX_TEXTURE_COUNT 100
+#define MAX_LIGHT_COUNT 255
 
 layout(location = 0) in vec3 frag_pos;
 layout(location = 1) in vec3 v_normal;
@@ -12,9 +12,15 @@ layout(set = 0, binding = 2) uniform sampler2D normal_tex;
 layout(set = 0, binding = 3) uniform sampler2D metal_rough_tex;
 layout(set = 0, binding = 4) uniform sampler2D ao_tex;
 
+struct PointLight {
+    vec4 position;
+    vec4 color;
+    uvec4 power;
+};
+
 layout(set = 0, binding = 5) uniform Data {
-    mat4 rotation;
-    vec3 view_pos;
+    vec4 view_pos;
+    PointLight lights[MAX_LIGHT_COUNT];
 } uniforms;
 
 layout(push_constant) uniform FragPushConstants {
@@ -22,6 +28,7 @@ layout(push_constant) uniform FragPushConstants {
     float metalness;
     float roughness;
     float reflectance;
+    uint point_light_count;
 } push_constants;
 
 layout(location = 0) out vec4 f_color;
@@ -31,21 +38,10 @@ const float PI = 3.1415926538;
 const int POINT_LIGHT = 0;
 const int SPOT_LIGHT  = 1;
 
-const vec3 LIGHTS[4] = vec3[4](
-    vec3(20, 60, 70),
-    vec3(-9, 2, -4),
-    vec3(-4, -6, 5),
-    vec3(2, 9, -3)
-);
-
-
 const float ILLUMINANCE_FACTOR[2] = float[2](
     4 * PI,
     PI
 );
-
-const float LIGHT_POWER = 2400;
-const vec3 LIGHT_COLOR = vec3(1.0, 1.0, 1.0);
 
 const float roughness = 0.4;
 const float metalness = 1.0;
@@ -153,7 +149,7 @@ void main() {
 
     // V: view vector
     // N: normal
-    vec3 V = normalize(uniforms.view_pos - frag_pos);
+    vec3 V = normalize(vec3(uniforms.view_pos) - frag_pos);
     vec3 N = CalculateNormal();
 
     float alpha = roughness * roughness;
@@ -166,7 +162,9 @@ void main() {
     vec3 Lo = vec3(0.0);
 
     for (int i = 0; i < 4; i++) {
-        vec3 light_pos = vec3(vec4(LIGHTS[i], 1.0) * view);
+        PointLight light = uniforms.lights[i];
+
+        vec3 light_pos = vec3(light.position * view);
 
         // L: incident light vector
         // H: half vector
@@ -203,7 +201,7 @@ void main() {
         // Calulcate the radiance of this light source.
         float distance = length(light_pos - frag_pos);
         float attenuation = 1.0 / max(distance * distance, 0.01 * 0.01);
-        vec3 light_color = LIGHT_COLOR * LIGHT_POWER / ILLUMINANCE_FACTOR[POINT_LIGHT];
+        vec3 light_color = vec3(light.color) * light.power.x / ILLUMINANCE_FACTOR[POINT_LIGHT];
         vec3 radiance = light_color * attenuation * NdotL;
 
         Lo += (diffuse + specular) * radiance;

@@ -4,21 +4,22 @@ mod world_render;
 
 pub mod shaders;
 
-use std::convert::TryInto;
+use crate::render::world_render::WorldRender; 
+use crate::state::InputState;
+use crate::world::World;
+use crate::world::light::Light;
 
 use base::VulkanBase;
 use camera::Camera;
 use shaders::*;
 
-use cgmath::{Deg, Matrix4, One, Point3, Vector3};
-use vulkano::{
-    command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents},
-    sync::{self, GpuFuture},
-};
+use cgmath::{Deg, Point3, Vector3};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents};
+use vulkano::sync::{self, GpuFuture};
 use winit::event_loop::EventLoop;
 
-use crate::world::World;
-use crate::{render::world_render::WorldRender, state::InputState};
+use std::convert::TryInto;
+
 
 pub struct Renderer {
     pub base: VulkanBase,
@@ -117,6 +118,29 @@ impl Renderer {
         )
         .unwrap();
 
+        // TODO why are we doing this for every primitive?
+        // Can we do this in some dynamic buffer?
+        let mut point_lights = [
+            frag::ty::PointLight { 
+                position: [0.0, 0.0, 0.0, 0.0], 
+                color: [0.0, 0.0, 0.0, 0.0],
+                power: [0, 0, 0, 0],
+            }; 
+            255 
+        ];
+
+        for (i, l) in world.lights.iter().enumerate() {
+            println!("{:?}", l);
+
+            point_lights[i] = 
+                frag::ty::PointLight {
+                    position: l.position(),
+                    color: l.color(),
+                    power: l.power(),
+                };
+        }
+
+        // Update uniform buffers.
         for draw_info in &self.world_render.primitive_info {
             let set = self.world_render.material_info[draw_info.material_name.as_ref().unwrap()]
                 .descriptor_set
@@ -134,8 +158,13 @@ impl Renderer {
                 .update_buffer(
                     set.fragment_uniform_buffer.as_ref().unwrap().clone(),
                     std::sync::Arc::new(frag::ty::Data {
-                        rotation: Matrix4::one().into(),
-                        view_pos: self.camera.eye.into(),
+                        view_pos: [
+                            self.camera.eye.x,
+                            self.camera.eye.y,
+                            self.camera.eye.z,
+                            0.0,
+                        ],
+                        lights: point_lights,
                     }),
                 )
                 .unwrap();
@@ -167,19 +196,21 @@ impl Renderer {
                 metalness: material.metallic_factor,
                 roughness: material.roughness_factor,
                 reflectance: material.reflectance,
+                point_light_count: world.lights.len() as u32,
             };
 
+            // FIXME
             let vert_data = unsafe {
                 std::mem::transmute::<vert::ty::VertPushConstants, [u8; 64]>(vert_push_constants)
             };
 
             let frag_data = unsafe {
-                std::mem::transmute::<frag::ty::FragPushConstants, [u8; 92]>(frag_push_constants)
+                std::mem::transmute::<frag::ty::FragPushConstants, [u8; 96]>(frag_push_constants)
             };
 
             let mut data_vec = vert_data.to_vec();
             data_vec.extend(frag_data.iter().skip(64));
-            let push_constants: [u8; 92] = data_vec.try_into().unwrap();
+            let push_constants: [u8; 96] = data_vec.try_into().unwrap();
 
             let set = self.world_render.material_info[draw_info.material_name.as_ref().unwrap()]
                 .descriptor_set
