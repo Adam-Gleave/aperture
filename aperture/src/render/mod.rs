@@ -5,6 +5,7 @@ mod world_render;
 
 pub mod shaders;
 
+use crate::render::environment::Environment;
 use crate::render::world_render::WorldRender; 
 use crate::state::InputState;
 use crate::world::World;
@@ -14,7 +15,7 @@ use base::VulkanBase;
 use camera::Camera;
 use shaders::*;
 
-use cgmath::{Deg, Point3, Vector3};
+use cgmath::{Deg, Matrix4, Point3, Vector3, perspective};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, DynamicState, SubpassContents};
 use vulkano::sync::{self, GpuFuture};
 use winit::event_loop::EventLoop;
@@ -66,6 +67,7 @@ impl Renderer {
 
         self.world_render.update_environment(
             self.base.environment_pipeline.clone(),
+            &self.base.shaders,
             self.base.device.clone(),
             self.base.queue.clone(),
         );
@@ -148,10 +150,30 @@ impl Renderer {
         if let Some(environment) = &self.world_render.environment {
             builder
                 .update_buffer(
-                    environment.uniform_buffer.clone(),
+                    environment.skybox_uniform_buffer.clone(),
                     std::sync::Arc::new(cube_vert::ty::Data {
                         proj: proj.into(),
                         view: view.into(),
+                    }),
+                )
+                .unwrap();
+
+            let proj = perspective(Deg(90.0), 1.0, 0.1, 10.0);
+            let views: [[[f32; 4]; 4]; 6] = [
+                Matrix4::look_at_rh([0.0, 0.0, 0.0].into(), [ 1.0,  0.0,  0.0].into(), [0.0, -1.0,  0.0].into()).into(),
+                Matrix4::look_at_rh([0.0, 0.0, 0.0].into(), [-1.0,  0.0,  0.0].into(), [0.0, -1.0,  0.0].into()).into(),
+                Matrix4::look_at_rh([0.0, 0.0, 0.0].into(), [ 0.0,  1.0,  0.0].into(), [0.0,  0.0,  1.0].into()).into(),
+                Matrix4::look_at_rh([0.0, 0.0, 0.0].into(), [ 0.0, -1.0,  0.0].into(), [0.0,  0.0, -1.0].into()).into(),
+                Matrix4::look_at_rh([0.0, 0.0, 0.0].into(), [ 0.0,  0.0,  1.0].into(), [0.0, -1.0,  0.0].into()).into(),
+                Matrix4::look_at_rh([0.0, 0.0, 0.0].into(), [ 0.0,  0.0, -1.0].into(), [0.0, -1.0,  0.0].into()).into(),
+            ];
+
+            builder
+                .update_buffer(
+                    environment.offscreen_cube_uniform_buffer.clone(),
+                    std::sync::Arc::new(offscreen_cube_vert::ty::Data {
+                        proj: proj.into(),
+                        views,
                     }),
                 )
                 .unwrap();
@@ -184,6 +206,37 @@ impl Renderer {
                         lights: point_lights,
                     }),
                 )
+                .unwrap();
+        }
+
+        // Project the HDRI environment map to a cube.
+        if let Some(environment) = &self.world_render.environment {
+            builder
+                .begin_render_pass(
+                    environment.offscreen_framebuffer.clone(),
+                    SubpassContents::Inline,
+                    vec![[0.1, 0.1, 0.1, 1.0].into(), 1f32.into()],
+                )
+                .unwrap();
+
+            for i in 0..Environment::CUBE_IMAGE_LAYERS {
+                let push_constants = offscreen_cube_vert::ty::VertPushConstants {
+                    index: i,
+                };
+
+                builder.draw(
+                    environment.offscreen_cube_pipeline.clone(),
+                    &DynamicState::none(),
+                    vec![environment.offscreen_cube_vertex_buffer.clone()],
+                    environment.offscreen_cube_set.clone(),
+                    push_constants,
+                    vec![],
+                )
+                .unwrap();
+            }
+
+            builder
+                .end_render_pass()
                 .unwrap();
         }
 
@@ -265,8 +318,8 @@ impl Renderer {
                 .draw(
                     self.base.environment_pipeline.clone(),
                     &DynamicState::none(),
-                    vec![environment.vertex_buffer.clone()],
-                    environment.set.clone(),
+                    vec![environment.skybox_vertex_buffer.clone()],
+                    environment.skybox_set.clone(),
                     (),
                     vec![],
                 )

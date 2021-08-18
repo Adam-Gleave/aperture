@@ -46,10 +46,16 @@ impl WorldRender {
     pub fn update_environment(
         &mut self,
         pipeline: Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
+        shaders: &Shaders,
         device: Arc<Device>,
         queue: Arc<Queue>,
     ) {
-        self.environment = Some(Environment::new(pipeline, device, queue));
+        self.environment = Some(Environment::new(
+            pipeline, 
+            shaders,
+            device, 
+            queue,
+        ));
     }
 
     fn gen_primitive_info<'a>(

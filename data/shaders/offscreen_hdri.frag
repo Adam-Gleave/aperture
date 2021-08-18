@@ -4,7 +4,7 @@ layout(location = 0) in vec3 local_pos;
 
 layout(location = 0) out vec4 f_color;
 
-layout(set = 0, binding = 1) uniform sampler2D skybox;
+layout(set = 0, binding = 1) uniform sampler2D hdri;
 
 const vec2 inv_tan = vec2(0.1591, 0.3183);
 
@@ -19,7 +19,7 @@ vec2 SampleSphericalMap(vec3 v) {
 
 void main() {
     vec2 uv = SampleSphericalMap(normalize(local_pos));
-    vec3 color = texture(skybox, uv).rgb;
+    vec3 color = texture(hdri, uv).rgb;
 
-    f_color = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
+    f_color = vec4(color, 1.0);
 }

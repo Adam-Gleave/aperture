@@ -4,12 +4,14 @@ use aperture_common::{VPos, VPosNormTex};
 
 use vulkano::descriptor::descriptor::ShaderStages;
 use vulkano::device::Device;
+use vulkano::pipeline::depth_stencil::{DepthBounds, DepthStencil};
 use vulkano::pipeline::layout::{PipelineLayout, PipelineLayoutDesc, PipelineLayoutDescPcRange};
 use vulkano::pipeline::shader::EntryPointAbstract;
 use vulkano::pipeline::vertex::SingleBufferDefinition;
 use vulkano::pipeline::viewport::Viewport;
 use vulkano::pipeline::{GraphicsPipeline, GraphicsPipelineAbstract};
 use vulkano::render_pass::{RenderPass, Subpass};
+use vulkano::sampler::Compare;
 
 use std::iter;
 use std::sync::Arc;
@@ -126,7 +128,7 @@ impl Pipeline {
             GraphicsPipeline::start()
                 .vertex_input(SingleBufferDefinition::<VPos>::new())
                 .vertex_shader(shaders.cubemap_vert.main_entry_point(), ())
-                .polygon_mode_fill()
+                .polygon_mode_line()
                 .viewports_dynamic_scissors_irrelevant(1)
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
@@ -134,8 +136,14 @@ impl Pipeline {
                     depth_range: 0.0..0.99,
                 }))
                 .fragment_shader(shaders.cubemap_frag.main_entry_point(), ())
-                .depth_stencil_simple_depth()
-                .cull_mode_back()
+                .depth_stencil(DepthStencil { 
+                    depth_compare: Compare::LessOrEqual,
+                    depth_write: true, 
+                    depth_bounds_test: DepthBounds::Disabled,
+                    stencil_front: Default::default(),
+                    stencil_back: Default::default(), 
+                })
+                .cull_mode_disabled()
                 .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
                 .with_pipeline_layout(device.clone(), pipeline_layout)
                 .unwrap(),

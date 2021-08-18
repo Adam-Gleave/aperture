@@ -11,5 +11,9 @@ layout(location = 0) out vec3 local_pos;
 
 void main() {
     local_pos = position;
-    gl_Position = uniforms.proj * uniforms.view * vec4(position, 1.0);
+
+    mat4 view_rotation = mat4(mat3(uniforms.view));
+    vec4 clipped_pos = uniforms.proj * view_rotation * vec4(local_pos, 1.0);
+
+    gl_Position = clipped_pos.xyww;
 }
