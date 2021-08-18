@@ -8,7 +8,7 @@ use vulkano::descriptor::descriptor_set::{DescriptorSet, PersistentDescriptorSet
 use vulkano::device::{Device, Queue};
 use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewType};
-use vulkano::image::{AttachmentImage, ImageAccess, ImageCreateFlags, ImageDimensions, ImageUsage, ImmutableImage, MipmapsCount, SampleCount, StorageImage};
+use vulkano::image::{AttachmentImage, ImageAccess, ImageCreateFlags, ImageDimensions, ImageUsage, ImmutableImage, MipmapsCount, StorageImage};
 use vulkano::pipeline::depth_stencil::{DepthBounds, DepthStencil};
 use vulkano::pipeline::layout::{PipelineLayout, PipelineLayoutDesc, PipelineLayoutDescPcRange};
 use vulkano::pipeline::shader::EntryPointAbstract;
@@ -24,11 +24,12 @@ use std::sync::Arc;
 pub struct Environment {
     pub cube: Cube,
     
+    pub cubemap_image: Arc<dyn ImageAccess + Send + Sync>,
     pub skybox_vertex_buffer: Arc<dyn BufferAccess + Send + Sync>,
     pub skybox_uniform_buffer: Arc<dyn TypedBufferAccess<Content = cube_vert::ty::Data> + Send + Sync>,
     pub skybox_set: Arc<dyn DescriptorSet + Send + Sync>,
 
-    pub cube_texture_target: Arc<dyn ImageAccess + Send + Sync>,
+    pub framebuffer_image: Arc<dyn ImageAccess + Send + Sync>,
     pub offscreen_cube_pipeline: Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
     pub offscreen_cube_vertex_buffer: Arc<dyn BufferAccess + Send + Sync>,
     pub offscreen_cube_uniform_buffer: Arc<dyn TypedBufferAccess<Content = offscreen_cube_vert::ty::Data> + Send + Sync>,  
@@ -105,7 +106,20 @@ impl Environment {
             ).unwrap()
         );
 
-        let cube_texture_target = StorageImage::with_usage(
+        let framebuffer_image = AttachmentImage::with_usage(
+            device.clone(), 
+            Self::CUBE_DIMENSIONS,
+            Format::R32G32B32A32Sfloat,
+            ImageUsage {
+                transfer_source: true,
+                ..ImageUsage::none()
+            },
+        )
+        .unwrap();
+
+        let framebuffer_image_view = ImageView::new(framebuffer_image.clone()).unwrap();
+
+        let cubemap_image = StorageImage::with_usage(
             device.clone(),
             ImageDimensions::Dim2d {
                 width: Self::CUBE_DIMENSIONS[0],
@@ -127,23 +141,17 @@ impl Environment {
         )
         .unwrap();
 
-        let cubemap_image_view = ImageView::start(cube_texture_target.clone())
+        let cubemap_image_view = ImageView::start(cubemap_image.clone())
             .with_type(ImageViewType::Cubemap)
             .build()
             .unwrap();
 
         let offscreen_framebuffer = {
             let depth_buffer = ImageView::new(
-                AttachmentImage::multisampled_with_usage_with_layers(
-                    device.clone(), 
-                    Self::CUBE_DIMENSIONS, 
-                    Self::CUBE_IMAGE_LAYERS,
-                    SampleCount::Sample1,
+                AttachmentImage::transient(
+                    device.clone(),
+                    Self::CUBE_DIMENSIONS,
                     Format::D16Unorm,
-                    ImageUsage {
-                        depth_stencil_attachment: true,
-                        ..ImageUsage::none()
-                    },
                 )
                 .unwrap()
             )
@@ -151,7 +159,7 @@ impl Environment {
 
             Arc::new(
                 Framebuffer::start(offscreen_render_pass.clone())
-                    .add(cubemap_image_view.clone())
+                    .add(framebuffer_image_view.clone())
                     .unwrap()
                     .add(depth_buffer.clone())
                     .unwrap()
@@ -252,10 +260,11 @@ impl Environment {
 
         Self {
             cube,
+            cubemap_image,
             skybox_vertex_buffer,
             skybox_uniform_buffer,
             skybox_set,
-            cube_texture_target,
+            framebuffer_image,
             offscreen_cube_pipeline,
             offscreen_cube_vertex_buffer,
             offscreen_cube_uniform_buffer,

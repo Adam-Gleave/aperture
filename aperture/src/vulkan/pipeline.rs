@@ -128,7 +128,7 @@ impl Pipeline {
             GraphicsPipeline::start()
                 .vertex_input(SingleBufferDefinition::<VPos>::new())
                 .vertex_shader(shaders.cubemap_vert.main_entry_point(), ())
-                .polygon_mode_line()
+                .polygon_mode_fill()
                 .viewports_dynamic_scissors_irrelevant(1)
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],

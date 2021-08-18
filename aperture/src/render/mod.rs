@@ -211,15 +211,15 @@ impl Renderer {
 
         // Project the HDRI environment map to a cube.
         if let Some(environment) = &self.world_render.environment {
-            builder
-                .begin_render_pass(
-                    environment.offscreen_framebuffer.clone(),
-                    SubpassContents::Inline,
-                    vec![[0.1, 0.1, 0.1, 1.0].into(), 1f32.into()],
-                )
-                .unwrap();
-
             for i in 0..Environment::CUBE_IMAGE_LAYERS {
+                builder
+                    .begin_render_pass(
+                        environment.offscreen_framebuffer.clone(),
+                        SubpassContents::Inline,
+                        vec![[0.1, 0.1, 0.1, 1.0].into(), 1f32.into()],
+                    )
+                    .unwrap();
+
                 let push_constants = offscreen_cube_vert::ty::VertPushConstants {
                     index: i,
                 };
@@ -233,14 +233,28 @@ impl Renderer {
                     vec![],
                 )
                 .unwrap();
-            }
 
-            builder
-                .end_render_pass()
-                .unwrap();
+                builder
+                    .end_render_pass()
+                    .unwrap();
+                
+                builder
+                    .copy_image(
+                        environment.framebuffer_image.clone(),
+                        [0, 0, 0],
+                        0, 
+                        0,
+                        environment.cubemap_image.clone(),
+                        [0, 0, 0],
+                        i,
+                        0,
+                        [Environment::CUBE_DIMENSIONS[0], Environment::CUBE_DIMENSIONS[1], 1],
+                        1,
+                    )
+                    .unwrap();
+            }
         }
 
-        // Just clear the screen for now.
         builder
             .begin_render_pass(
                 self.base.framebuffers[image_num].clone(),
