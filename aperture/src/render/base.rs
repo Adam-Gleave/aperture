@@ -176,7 +176,7 @@ impl VulkanBase {
         //
         // The framebuffer is the render target.
         let pipeline_type = Pipeline::Shaded;
-        let (pipeline, framebuffers) = window_size_dependent_setup(
+        let (pipeline, environment_pipeline, framebuffers) = window_size_dependent_setup(
             device.clone(),
             &shaders,
             &images,
@@ -184,13 +184,6 @@ impl VulkanBase {
             pipeline_type,
         )
         .unwrap();
-
-        let environment_pipeline = Pipeline::Cubemap.create(
-            device.clone(),
-            images[0].dimensions(),
-            &shaders,
-            render_pass.clone(),
-        );
 
         (
             Self {
@@ -246,7 +239,7 @@ impl VulkanBase {
 
         self.swapchain = new_swapchain;
 
-        if let Some((new_pipeline, new_framebuffers)) = window_size_dependent_setup(
+        if let Some((new_pipeline, new_environment_pipeline, new_framebuffers)) = window_size_dependent_setup(
             self.device.clone(),
             &self.shaders,
             &new_swapchain_images,
@@ -254,6 +247,7 @@ impl VulkanBase {
             self.pipeline_type,
         ) {
             self.pipeline = new_pipeline;
+            self.environment_pipeline = new_environment_pipeline;
             self.framebuffers = new_framebuffers;
             self.recreate_swapchain = false;
         } else {
@@ -275,6 +269,7 @@ fn window_size_dependent_setup(
     render_pass: Arc<RenderPass>,
     pipeline: Pipeline,
 ) -> Option<(
+    Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
     Arc<dyn GraphicsPipelineAbstract + Send + Sync>,
     Vec<Arc<dyn FramebufferAbstract + Send + Sync>>,
 )> {
@@ -304,7 +299,8 @@ fn window_size_dependent_setup(
         })
         .collect::<Vec<_>>();
 
-    let pipeline = pipeline.create(device, dimensions, shaders, render_pass);
+    let pipeline = pipeline.create(device.clone(), dimensions, shaders, render_pass.clone());
+    let environment_pipeline = Pipeline::Cubemap.create(device.clone(), dimensions, shaders, render_pass.clone());
 
-    Some((pipeline, framebuffers))
+    Some((pipeline, environment_pipeline, framebuffers))
 }

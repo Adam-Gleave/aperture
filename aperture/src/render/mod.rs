@@ -115,7 +115,7 @@ impl Renderer {
         };
 
         let aspect_ratio = dimensions[0] as f32 / dimensions[1] as f32;
-        let proj = cgmath::perspective(Deg(60.0), aspect_ratio, 0.01, 100.0);
+        let proj = cgmath::perspective(Deg(60.0), aspect_ratio, 0.1, 100.0);
         let view = self.camera.view_matrix();
 
         // Start building the command buffer.

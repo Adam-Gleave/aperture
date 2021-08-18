@@ -59,7 +59,7 @@ impl Cube {
     
     pub fn textured() -> Self {
         let hdr = HdrDecoder::new(
-            BufReader::new(File::open("data/images/environment.hdr").unwrap())
+            BufReader::new(File::open("data/images/desert_environment.hdr").unwrap())
         )
         .unwrap();
 

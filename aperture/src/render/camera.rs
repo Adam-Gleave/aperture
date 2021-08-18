@@ -42,7 +42,6 @@ impl Camera {
         let rotation_y = Matrix3::from_axis_angle(self.right_vector(), Rad(delta_y));
         let final_position = (rotation_y * (Point3::from_vec(position) - pivot)) + pivot.to_vec();
 
-        self.up = rotation_y * self.up;
         self.set_position(Point3::from_vec(final_position));
     }
 

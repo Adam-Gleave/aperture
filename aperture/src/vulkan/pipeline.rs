@@ -92,7 +92,7 @@ impl Pipeline {
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
                     dimensions: [dimensions[0] as f32, dimensions[1] as f32],
-                    depth_range: 0.0..0.99,
+                    depth_range: 0.0..1.0,
                 }))
                 .fragment_shader(shaders.fragment.main_entry_point(), ())
                 .depth_stencil_simple_depth()
@@ -133,7 +133,7 @@ impl Pipeline {
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
                     dimensions: [dimensions[0] as f32, dimensions[1] as f32],
-                    depth_range: 0.0..0.99,
+                    depth_range: 0.0..1.0,
                 }))
                 .fragment_shader(shaders.cubemap_frag.main_entry_point(), ())
                 .depth_stencil(DepthStencil { 

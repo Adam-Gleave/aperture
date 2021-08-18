@@ -208,7 +208,7 @@ impl Environment {
                 .viewports(iter::once(Viewport {
                     origin: [0.0, 0.0],
                     dimensions: [Self::CUBE_DIMENSIONS[0] as f32, Self::CUBE_DIMENSIONS[1] as f32],
-                    depth_range: 0.0..0.99,
+                    depth_range: 0.0..1.0,
                 }))
                 .fragment_shader(shaders.offscreen_cube_frag.main_entry_point(), ())
                 .depth_stencil(DepthStencil { 
