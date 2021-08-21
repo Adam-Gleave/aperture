@@ -7,14 +7,14 @@ pub struct VPosNormTex {
     pub uv_coord: [f32; 2],
 }
 
-vulkano::impl_vertex!(VPosNormTex, position, normal, uv_coord);
+// vulkano::impl_vertex!(VPosNormTex, position, normal, uv_coord);
 
 #[derive(Default, Debug, Clone)]
 pub struct VPos {
     pub position: [f32; 3],
 }
 
-vulkano::impl_vertex!(VPos, position);
+// vulkano::impl_vertex!(VPos, position);
 
 #[derive(Debug, Clone)]
 pub struct Transform {

@@ -7,10 +7,8 @@ edition = "2018"
 aperture-common = { path = "../aperture-common" }
 aperture-mesh = { path = "../aperture-mesh" }
 
+ash = "0.32"
+ash-window = "0.6"
 cgmath = "0.18"
-image = "0.23"
-tokio = { version = "1.9", features = [ "full" ] }
-vulkano = "0.24"
-vulkano-shaders = "0.24"
-vulkano-win = "0.24"
+gpu-allocator = "0.8"
 winit = "0.25"
