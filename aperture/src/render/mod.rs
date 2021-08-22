@@ -1,11 +1,14 @@
 use crate::vulkan::buffer::Buffer;
 use crate::vulkan::context::Context;
+use crate::vulkan::shader_module::ShaderModule;
 
 use aperture_common::VPosCol;
+
 use ash::version::DeviceV1_0;
 use ash::vk;
 use winit::event_loop::EventLoop;
 
+use std::io::Cursor;
 use std::sync::Arc;
 
 pub struct Renderer {
@@ -134,6 +137,16 @@ impl Renderer {
         );
 
         vertex_buffer.upload(&vertex_buffer_data, 0);
+
+        let vert_shader_module = ShaderModule::new(
+            &mut Cursor::new(&include_bytes!("../../../data/shaders/gen/triangle.vert.spv")[..]),
+            vk_context.clone(),
+        );
+
+        let frag_shader_module = ShaderModule::new(
+            &mut Cursor::new(&include_bytes!("../../../data/shaders/gen/triangle.frag.spv")[..]),
+            vk_context.clone(),
+        );
 
         Self {
             title,

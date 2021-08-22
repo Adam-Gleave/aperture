@@ -2,6 +2,7 @@
 name = "aperture"
 version = "0.1.0"
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 aperture-common = { path = "../aperture-common" }
@@ -12,3 +13,6 @@ ash-window = "0.6"
 cgmath = "0.18"
 gpu-allocator = "0.8"
 winit = "0.25"
+
+[build-dependencies]
+glsl-to-spirv = "0.1.5"

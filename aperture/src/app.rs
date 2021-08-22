@@ -32,7 +32,7 @@ pub fn run_app(config: AppConfig) {
     let renderer = Renderer::new(config.title, config.width, config.height);
     let input_state = InputState::default();
 
-    let app = App {
+    let _app = App {
         renderer,
         input_state,
     };
