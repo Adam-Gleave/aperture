@@ -12,6 +12,7 @@ use std::borrow::Cow;
 use std::default::Default;
 use std::ffi::{CStr, CString};
 use std::ops::Drop;
+use std::sync::Arc;
 
 #[macro_export]
 macro_rules! offset_of {
@@ -41,6 +42,7 @@ pub struct Context {
     pub debug_callback: vk::DebugUtilsMessengerEXT,
     pub physical_device: vk::PhysicalDevice,
     pub logical_device: Device,
+    pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     pub queue_family_index: u32,
     pub present_queue: vk::Queue,
     pub swapchain: vk::SwapchainKHR,
@@ -60,7 +62,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(title: String, width: u32, height: u32) -> (EventLoop<()>, Self) {
+    pub fn new(title: String, width: u32, height: u32) -> (EventLoop<()>, Arc<Self>) {
         unsafe {
             let entry = Entry::new().unwrap();
 
@@ -121,46 +123,50 @@ impl Context {
             
             let (setup_commands_reuse_fence, draw_commands_reuse_fence) = create_fences(&logical_device);
             let (present_complete_semaphore, rendering_complete_semaphore) = create_semaphores(&logical_device);
+        
+            let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
 
             let (depth_image, depth_image_view, depth_image_memory) = create_depth_images(
-                &instance,
-                &physical_device,
                 &logical_device,
                 &setup_command_buffer,
                 &setup_commands_reuse_fence,
                 &present_queue,
                 &surface_properties,
+                &device_memory_properties,
             );
 
             (
                 event_loop,
-                Self {
-                    instance,
-                    surface_loader,
-                    surface,
-                    surface_properties,
-                    window,
-                    debug_utils_loader,
-                    debug_callback,
-                    physical_device,
-                    logical_device,
-                    queue_family_index,
-                    present_queue,
-                    swapchain,
-                    swapchain_loader,
-                    command_pool,
-                    setup_command_buffer,
-                    draw_command_buffer,
-                    present_images,
-                    present_image_views,
-                    depth_image,
-                    depth_image_view,
-                    depth_image_memory,
-                    setup_commands_reuse_fence,
-                    draw_commands_reuse_fence,
-                    present_complete_semaphore,
-                    rendering_complete_semaphore,
-                }
+                Arc::new(
+                    Self {
+                        instance,
+                        surface_loader,
+                        surface,
+                        surface_properties,
+                        window,
+                        debug_utils_loader,
+                        debug_callback,
+                        physical_device,
+                        logical_device: logical_device,
+                        device_memory_properties,
+                        queue_family_index,
+                        present_queue,
+                        swapchain,
+                        swapchain_loader,
+                        command_pool,
+                        setup_command_buffer,
+                        draw_command_buffer,
+                        present_images,
+                        present_image_views,
+                        depth_image,
+                        depth_image_view,
+                        depth_image_memory,
+                        setup_commands_reuse_fence,
+                        draw_commands_reuse_fence,
+                        present_complete_semaphore,
+                        rendering_complete_semaphore,
+                    }
+                )
             )
         }
     }
@@ -488,17 +494,14 @@ fn create_present_images(
 }
 
 fn create_depth_images(
-    instance: &Instance,
-    p_device: &vk::PhysicalDevice,
     l_device: &Device,
     setup_command_buffer: &vk::CommandBuffer,
     setup_commands_reuse_fence: &vk::Fence,
     present_queue: &vk::Queue,
     surface_properties: &SurfaceProperties,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
 ) -> (vk::Image, vk::ImageView, vk::DeviceMemory) {
     unsafe {
-        let device_memory_properties = instance.get_physical_device_memory_properties(*p_device);
-
         let depth_image_create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
             .format(vk::Format::D16_UNORM)
@@ -518,7 +521,7 @@ fn create_depth_images(
         let depth_image_memory_req = l_device.get_image_memory_requirements(depth_image);
         let depth_image_memory_index = find_memory_type_index(
             &depth_image_memory_req,
-            &device_memory_properties,
+            memory_properties,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )
         .unwrap();

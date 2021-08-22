@@ -1,5 +1,11 @@
 use cgmath::{Matrix4, One};
 
+#[derive(Default, Debug, Clone, Copy)]
+pub struct VPosCol {
+    pub position: [f32; 4],
+    pub color: [f32; 4],
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct VPosNormTex {
     pub position: [f32; 3],
