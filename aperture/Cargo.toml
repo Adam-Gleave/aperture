@@ -8,8 +8,8 @@ build = "build.rs"
 aperture-common = { path = "../aperture-common" }
 aperture-mesh = { path = "../aperture-mesh" }
 
-ash = "0.32"
-ash-window = "0.6"
+ash = "0.33"
+ash-window = "0.7"
 cgmath = "0.18"
 gpu-allocator = "0.8"
 winit = "0.25"

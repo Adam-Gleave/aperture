@@ -59,8 +59,8 @@ version = "0.1.0"
 dependencies = [
  "aperture-common",
  "aperture-mesh",
- "ash 0.32.1",
- "ash-window",
+ "ash 0.33.1+1.2.186",
+ "ash-window 0.7.0",
  "cgmath",
  "glsl-to-spirv",
  "gpu-allocator",
@@ -71,10 +71,9 @@ dependencies = [
 name = "aperture-common"
 version = "0.1.0"
 dependencies = [
- "ash 0.33.0+1.2.186",
- "ash-window",
+ "ash 0.32.1",
+ "ash-window 0.6.0",
  "cgmath",
- "gpu-allocator",
 ]
 
 [[package]]
@@ -113,9 +112,9 @@ dependencies = [
 
 [[package]]
 name = "ash"
-version = "0.33.0+1.2.186"
+version = "0.33.1+1.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2142f1fa77cc4d24ffd2f24dc84f88ce5b1e588d524f10fb473a04b93aef14f"
+checksum = "4207a81da2432b483058334763ac2381d00342ec3bdf02d413c4d986a610d874"
 dependencies = [
  "libloading 0.7.0",
 ]
@@ -127,6 +126,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d058436a3a8410c6e9b625c4e763ea6eaba97d771c303fc2c8e3595b666ffa3"
 dependencies = [
  "ash 0.32.1",
+ "raw-window-handle",
+ "raw-window-metal",
+]
+
+[[package]]
+name = "ash-window"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12f91ce4c6be1a2ba99d3d6cd57d5bae9ac6d6f903b5ae53d6b1dee2edf872af"
+dependencies = [
+ "ash 0.33.1+1.2.186",
  "raw-window-handle",
  "raw-window-metal",
 ]

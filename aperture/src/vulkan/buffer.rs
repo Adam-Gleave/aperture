@@ -1,13 +1,14 @@
 use crate::vulkan::context::*;
 
 use ash::vk;
-use ash::version::DeviceV1_0;
 
 use std::sync::Arc;
 
 pub struct Buffer {
     pub vk_handle: vk::Buffer,
     pub vk_context: Arc<Context>,
+    pub reserved_size: usize,
+    pub used_size: usize,
 }
 
 impl Buffer {
@@ -24,15 +25,51 @@ impl Buffer {
                 .unwrap()
         };
 
+        let memory_req = unsafe {
+            vk_context
+                .logical_device
+                .get_buffer_memory_requirements(buffer)
+        };
+
+        let memory_index = find_memorytype_index(
+            &memory_req,
+            &vk_context.device_memory_properties,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        )
+        .unwrap();
+
+        let buffer_allocate_info = vk::MemoryAllocateInfo {
+            allocation_size: memory_req.size,
+            memory_type_index: memory_index,
+            ..Default::default()
+        };
+
+        let buffer_memory = unsafe {
+            vk_context
+                .logical_device
+                .allocate_memory(&buffer_allocate_info, None)
+                .unwrap()
+        };
+
+        unsafe {
+            vk_context
+                .logical_device
+                .bind_buffer_memory(buffer, buffer_memory, 0)
+                .unwrap();
+        }
+
         Self {
             vk_handle: buffer,
             vk_context,
+            reserved_size: size as _,
+            used_size: 0,
         }
     }
 
     // TODO should probably return a Result here.
-    pub fn upload<T>(&self, data: &[T], offset: usize) {
+    pub fn upload<T>(&mut self, data: &[T], offset: usize) {
         let size = data.len() * std::mem::size_of::<T>();
+        self.used_size = size;
 
         let staging_buffer_create_info = vk::BufferCreateInfo::builder()
             .size(size as _)
@@ -52,7 +89,7 @@ impl Buffer {
                 .get_buffer_memory_requirements(staging_buffer)
         };
         
-        let staging_buffer_memory_index = find_memory_type_index(
+        let staging_buffer_memory_index = find_memorytype_index(
             &staging_buffer_memory_req,
             &self.vk_context.device_memory_properties,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -112,9 +149,9 @@ impl Buffer {
                 unsafe {
                     device.cmd_copy_buffer(
                         command_buffer, 
-                        self.vk_handle,
                         staging_buffer,
-                        &memory_region
+                        self.vk_handle,
+                        &memory_region,
                     );
                 }
             }

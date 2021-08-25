@@ -2,7 +2,6 @@ use crate::vulkan::context::*;
 
 use ash::util::read_spv;
 use ash::vk;
-use ash::version::DeviceV1_0;
 
 use std::io::Cursor;
 use std::sync::Arc;

@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-ash = "0.33"
+ash = "0.32"
 ash-window = "0.6"
 cgmath = "0.18"
-gpu-allocator = "0.8"
