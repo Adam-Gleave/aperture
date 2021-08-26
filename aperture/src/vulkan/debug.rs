@@ -1,5 +1,5 @@
-use ash::{Entry, Instance, vk};
 use ash::extensions::ext::DebugUtils;
+use ash::{vk, Entry, Instance};
 
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -27,14 +27,20 @@ impl DebugInfo {
                 .create_debug_utils_messenger(&create_info, None)
                 .unwrap()
         };
-        
-        Self { ash_handle, callback }
+
+        Self {
+            ash_handle,
+            callback,
+        }
     }
 }
 
 impl Drop for DebugInfo {
     fn drop(&mut self) {
-        unsafe { self.ash_handle.destroy_debug_utils_messenger(self.callback, None); }
+        unsafe {
+            self.ash_handle
+                .destroy_debug_utils_messenger(self.callback, None);
+        }
     }
 }
 

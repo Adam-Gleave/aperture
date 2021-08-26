@@ -2,8 +2,8 @@ use std::ops::Deref;
 
 use crate::vulkan::physical_device::PhysicalDevice;
 
-use ash::{Device, Instance, vk};
 use ash::extensions::khr::Swapchain;
+use ash::{vk, Device, Instance};
 
 pub struct LogicalDevice {
     pub ash_handle: Device,
@@ -57,6 +57,8 @@ impl Deref for LogicalDevice {
 
 impl Drop for LogicalDevice {
     fn drop(&mut self) {
-        unsafe { self.ash_handle.destroy_device(None); }
+        unsafe {
+            self.ash_handle.destroy_device(None);
+        }
     }
 }

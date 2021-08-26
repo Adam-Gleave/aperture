@@ -13,7 +13,11 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(size: vk::DeviceSize, usage: vk::BufferUsageFlags, vk_context: Arc<Context>) -> Self {
+    pub fn new(
+        size: vk::DeviceSize,
+        usage: vk::BufferUsageFlags,
+        vk_context: Arc<Context>,
+    ) -> Self {
         let buffer_create_info = vk::BufferCreateInfo::builder()
             .size(size as _)
             .usage(vk::BufferUsageFlags::TRANSFER_DST | usage)
@@ -90,7 +94,7 @@ impl Buffer {
                 .logical_device
                 .get_buffer_memory_requirements(staging_buffer)
         };
-        
+
         let staging_buffer_memory_index = find_memorytype_index(
             &staging_buffer_memory_req,
             &self.vk_context.physical_device.memory_properties,
@@ -114,7 +118,12 @@ impl Buffer {
         let data_ptr = unsafe {
             self.vk_context
                 .logical_device
-                .map_memory(staging_buffer_memory, 0, size as _, vk::MemoryMapFlags::empty())
+                .map_memory(
+                    staging_buffer_memory,
+                    0,
+                    size as _,
+                    vk::MemoryMapFlags::empty(),
+                )
                 .unwrap()
         };
 
@@ -132,12 +141,10 @@ impl Buffer {
                 .unwrap();
         }
 
-        let memory_region = [
-            vk::BufferCopy::builder()
-                .size(size as _)
-                .dst_offset(offset as _)
-                .build()
-        ];
+        let memory_region = [vk::BufferCopy::builder()
+            .size(size as _)
+            .dst_offset(offset as _)
+            .build()];
 
         record_submit_command_buffer(
             &self.vk_context.logical_device,
@@ -147,26 +154,24 @@ impl Buffer {
             &[],
             &[],
             &[],
-            |device, command_buffer| {
-                unsafe {
-                    device.cmd_copy_buffer(
-                        command_buffer, 
-                        staging_buffer,
-                        self.vk_handle,
-                        &memory_region,
-                    );
-                }
-            }
+            |device, command_buffer| unsafe {
+                device.cmd_copy_buffer(
+                    command_buffer,
+                    staging_buffer,
+                    self.vk_handle,
+                    &memory_region,
+                );
+            },
         );
     }
 }
 
 impl Drop for Buffer {
     fn drop(&mut self) {
-        unsafe { 
+        unsafe {
             self.vk_context
                 .logical_device
-                .destroy_buffer(self.vk_handle, None); 
+                .destroy_buffer(self.vk_handle, None);
         }
     }
 }

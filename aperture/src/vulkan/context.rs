@@ -5,8 +5,8 @@ use crate::vulkan::physical_device::PhysicalDevice;
 use crate::vulkan::surface::Surface;
 use crate::vulkan::swapchain::Swapchain;
 
-use ash::{Entry, Instance, vk};
 use ash::extensions::ext::DebugUtils;
+use ash::{vk, Entry, Instance};
 use winit::event_loop::EventLoop;
 use winit::window::{Window, WindowBuilder};
 
@@ -59,7 +59,7 @@ impl Context {
                 ))
                 .build(&event_loop)
                 .unwrap();
-            
+
             let entry = Entry::new().unwrap();
 
             let layer_names = [CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
@@ -94,19 +94,19 @@ impl Context {
 
             let debug = DebugInfo::new(&entry, &instance);
 
-            let mut surface = Surface::new(&entry, &instance, &window); 
+            let mut surface = Surface::new(&entry, &instance, &window);
 
             let physical_device = PhysicalDevice::new(&instance, &surface);
-            
+
             surface.init_properties(&physical_device, width, height);
             let surface_properties = surface.properties.as_ref().unwrap();
 
             let logical_device = Arc::new(LogicalDevice::new(&instance, &physical_device));
-            
+
             let swapchain = Swapchain::new(
-                &instance, 
-                &surface, 
-                logical_device.clone(), 
+                &instance,
+                &surface,
+                logical_device.clone(),
                 &physical_device,
             );
 
@@ -114,7 +114,9 @@ impl Context {
                 .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
                 .queue_family_index(physical_device.present_queue_family_index);
 
-            let command_pool = logical_device.create_command_pool(&pool_create_info, None).unwrap();
+            let command_pool = logical_device
+                .create_command_pool(&pool_create_info, None)
+                .unwrap();
 
             let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
                 .command_buffer_count(2)
@@ -164,7 +166,8 @@ impl Context {
                 setup_command_buffer,
                 setup_commands_reuse_fence,
                 vk::ImageAspectFlags::DEPTH,
-                vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
                 vk::ImageLayout::UNDEFINED,
                 vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
             );
@@ -173,26 +176,24 @@ impl Context {
 
             (
                 event_loop,
-                Arc::new(
-                    Self {
-                        entry,
-                        instance,
-                        logical_device,
-                        physical_device,
-                        window,
-                        debug,
-                        surface, 
-                        swapchain,
-                        command_pool,
-                        draw_command_buffer,
-                        setup_command_buffer,
-                        depth_image,
-                        present_complete_semaphore,
-                        rendering_complete_semaphore,
-                        draw_commands_reuse_fence,
-                        setup_commands_reuse_fence,
-                    },
-                ),  
+                Arc::new(Self {
+                    entry,
+                    instance,
+                    logical_device,
+                    physical_device,
+                    window,
+                    debug,
+                    surface,
+                    swapchain,
+                    command_pool,
+                    draw_command_buffer,
+                    setup_command_buffer,
+                    depth_image,
+                    present_complete_semaphore,
+                    rendering_complete_semaphore,
+                    draw_commands_reuse_fence,
+                    setup_commands_reuse_fence,
+                }),
             )
         }
     }
@@ -202,12 +203,17 @@ impl Drop for Context {
     fn drop(&mut self) {
         unsafe {
             self.logical_device.device_wait_idle().unwrap();
-            self.logical_device.destroy_semaphore(self.present_complete_semaphore, None);
-            self.logical_device.destroy_semaphore(self.rendering_complete_semaphore, None);
-            self.logical_device.destroy_fence(self.setup_commands_reuse_fence, None);
-            self.logical_device.destroy_fence(self.draw_commands_reuse_fence, None);
+            self.logical_device
+                .destroy_semaphore(self.present_complete_semaphore, None);
+            self.logical_device
+                .destroy_semaphore(self.rendering_complete_semaphore, None);
+            self.logical_device
+                .destroy_fence(self.setup_commands_reuse_fence, None);
+            self.logical_device
+                .destroy_fence(self.draw_commands_reuse_fence, None);
 
-            self.logical_device.destroy_command_pool(self.command_pool, None);
+            self.logical_device
+                .destroy_command_pool(self.command_pool, None);
             self.instance.destroy_instance(None);
         }
     }
@@ -263,9 +269,7 @@ pub fn record_submit_command_buffer<F: FnOnce(&LogicalDevice, vk::CommandBuffer)
 
         f(logical_device, command_buffer);
 
-        logical_device
-            .end_command_buffer(command_buffer)
-            .unwrap();
+        logical_device.end_command_buffer(command_buffer).unwrap();
 
         let command_buffers = vec![command_buffer];
 

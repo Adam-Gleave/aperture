@@ -10,13 +10,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if entry.file_type()?.is_file() {
             let path = entry.path();
 
-            let shader_type = path.extension().and_then(|ext| {
-                match ext.to_string_lossy().as_ref() {
-                    "vert" => Some(ShaderType::Vertex),
-                    "frag" => Some(ShaderType::Fragment),
-                    _ => None,
-                }
-            });
+            let shader_type =
+                path.extension()
+                    .and_then(|ext| match ext.to_string_lossy().as_ref() {
+                        "vert" => Some(ShaderType::Vertex),
+                        "frag" => Some(ShaderType::Fragment),
+                        _ => None,
+                    });
 
             if let Some(shader_type) = shader_type {
                 use std::io::Read;

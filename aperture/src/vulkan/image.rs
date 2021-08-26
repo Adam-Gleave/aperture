@@ -47,13 +47,9 @@ impl Image {
             .usage(usage)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-        let image = unsafe {
-            device.create_image(&image_create_info, None).unwrap()
-        };
+        let image = unsafe { device.create_image(&image_create_info, None).unwrap() };
 
-        let image_memory_req = unsafe {
-            device.get_image_memory_requirements(image)
-        };
+        let image_memory_req = unsafe { device.get_image_memory_requirements(image) };
 
         let image_memory_index = find_memorytype_index(
             &image_memory_req,
@@ -66,9 +62,7 @@ impl Image {
             .allocation_size(image_memory_req.size)
             .memory_type_index(image_memory_index);
 
-        let image_memory = unsafe {
-            device.allocate_memory(&image_allocate_info, None).unwrap()
-        };
+        let image_memory = unsafe { device.allocate_memory(&image_allocate_info, None).unwrap() };
 
         unsafe {
             device.bind_image_memory(image, image_memory, 0).unwrap();
@@ -86,9 +80,7 @@ impl Image {
             .format(format)
             .view_type(vk::ImageViewType::TYPE_2D);
 
-        let view = unsafe {
-            device.create_image_view(&view_create_info, None).unwrap()
-        };
+        let view = unsafe { device.create_image_view(&view_create_info, None).unwrap() };
 
         Self {
             device,

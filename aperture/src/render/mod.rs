@@ -1,6 +1,6 @@
 use crate::offset_of;
 use crate::vulkan::buffer::Buffer;
-use crate::vulkan::context::{Context, record_submit_command_buffer};
+use crate::vulkan::context::{record_submit_command_buffer, Context};
 use crate::vulkan::shader_module::ShaderModule;
 
 use aperture_common::VPosCol;
@@ -71,23 +71,23 @@ impl Renderer {
                 dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 ..Default::default()
             }];
-    
+
             let subpasses = [vk::SubpassDescription::builder()
                 .color_attachments(&color_attachment_refs)
                 .depth_stencil_attachment(&depth_attachment_ref)
                 .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
                 .build()];
-    
+
             let renderpass_create_info = vk::RenderPassCreateInfo::builder()
                 .attachments(&renderpass_attachments)
                 .subpasses(&subpasses)
                 .dependencies(&dependencies);
-    
+
             let renderpass = vk_context
                 .logical_device
                 .create_render_pass(&renderpass_create_info, None)
                 .unwrap();
-    
+
             let surface_resolution = vk_context.surface.properties.as_ref().unwrap().resolution;
 
             let framebuffers: Vec<vk::Framebuffer> = vk_context
@@ -103,19 +103,20 @@ impl Renderer {
                         .width(surface_resolution.width)
                         .height(surface_resolution.height)
                         .layers(1);
-    
-                    vk_context.logical_device
+
+                    vk_context
+                        .logical_device
                         .create_framebuffer(&frame_buffer_create_info, None)
                         .unwrap()
                 })
                 .collect();
-    
+
             let index_buffer_data = [0u32, 1, 2];
 
             let mut index_buffer = Buffer::new(
                 (std::mem::size_of::<f32>() * index_buffer_data.len()) as _,
                 vk::BufferUsageFlags::INDEX_BUFFER,
-                vk_context.clone()
+                vk_context.clone(),
             );
 
             index_buffer.upload(&index_buffer_data, 0);
@@ -134,32 +135,36 @@ impl Renderer {
                     color: [1.0, 0.0, 0.0, 1.0],
                 },
             ];
-    
+
             let mut vertex_buffer = Buffer::new(
                 (std::mem::size_of::<VPosCol>() * vertex_buffer_data.len()) as _,
                 vk::BufferUsageFlags::VERTEX_BUFFER,
-                vk_context.clone()
+                vk_context.clone(),
             );
 
             vertex_buffer.upload(&vertex_buffer_data, 0);
 
             let vert_shader_module = ShaderModule::new(
-                &mut Cursor::new(&include_bytes!("../../../data/shaders/gen/triangle.vert.spv")[..]),
+                &mut Cursor::new(
+                    &include_bytes!("../../../data/shaders/gen/triangle.vert.spv")[..],
+                ),
                 vk_context.clone(),
             );
-    
+
             let frag_shader_module = ShaderModule::new(
-                &mut Cursor::new(&include_bytes!("../../../data/shaders/gen/triangle.frag.spv")[..]),
+                &mut Cursor::new(
+                    &include_bytes!("../../../data/shaders/gen/triangle.frag.spv")[..],
+                ),
                 vk_context.clone(),
             );
 
             let layout_create_info = vk::PipelineLayoutCreateInfo::default();
-    
+
             let pipeline_layout = vk_context
                 .logical_device
                 .create_pipeline_layout(&layout_create_info, None)
                 .unwrap();
-    
+
             let shader_entry_name = CString::new("main").unwrap();
             let shader_stage_create_infos = [
                 vk::PipelineShaderStageCreateInfo {
@@ -197,9 +202,10 @@ impl Renderer {
                     offset: offset_of!(VPosCol, color) as u32,
                 },
             ];
-    
+
             let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
-                vertex_attribute_description_count: vertex_input_attribute_descriptions.len() as u32,
+                vertex_attribute_description_count: vertex_input_attribute_descriptions.len()
+                    as u32,
                 p_vertex_attribute_descriptions: vertex_input_attribute_descriptions.as_ptr(),
                 vertex_binding_description_count: vertex_input_binding_descriptions.len() as u32,
                 p_vertex_binding_descriptions: vertex_input_binding_descriptions.as_ptr(),
@@ -228,7 +234,7 @@ impl Renderer {
             let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder()
                 .scissors(&scissors)
                 .viewports(&viewports);
-    
+
             let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
                 front_face: vk::FrontFace::COUNTER_CLOCKWISE,
                 line_width: 1.0,
@@ -273,11 +279,11 @@ impl Renderer {
             let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
                 .logic_op(vk::LogicOp::CLEAR)
                 .attachments(&color_blend_attachment_states);
-    
+
             let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
             let dynamic_state_info =
                 vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
-    
+
             let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
                 .stages(&shader_stage_create_infos)
                 .vertex_input_state(&vertex_input_state_info)
@@ -290,7 +296,7 @@ impl Renderer {
                 .dynamic_state(&dynamic_state_info)
                 .layout(pipeline_layout)
                 .render_pass(renderpass);
-    
+
             let graphics_pipelines = vk_context
                 .logical_device
                 .create_graphics_pipelines(
@@ -299,7 +305,7 @@ impl Renderer {
                     None,
                 )
                 .expect("Unable to create graphics pipeline");
-    
+
             let graphics_pipeline = graphics_pipelines[0];
 
             (
@@ -334,7 +340,7 @@ impl Renderer {
                 )
                 .unwrap()
         };
-        
+
         let clear_values = [
             vk::ClearValue {
                 color: vk::ClearColorValue {
@@ -397,14 +403,7 @@ impl Renderer {
                         vk::IndexType::UINT32,
                     );
 
-                    device.cmd_draw_indexed(
-                        draw_command_buffer,
-                        3,
-                        1,
-                        0,
-                        0,
-                        1,
-                    );
+                    device.cmd_draw_indexed(draw_command_buffer, 3, 1, 0, 0, 1);
 
                     device.cmd_end_render_pass(draw_command_buffer);
                 },
@@ -414,11 +413,12 @@ impl Renderer {
             let swapchains = [self.vk_context.swapchain.vk_handle];
             let image_indices = [present_index];
             let present_info = vk::PresentInfoKHR::builder()
-                .wait_semaphores(&wait_semaphors) 
+                .wait_semaphores(&wait_semaphors)
                 .swapchains(&swapchains)
                 .image_indices(&image_indices);
 
-            self.vk_context.swapchain
+            self.vk_context
+                .swapchain
                 .queue_present(self.vk_context.logical_device.present_queue, &present_info)
                 .unwrap();
         }
@@ -444,7 +444,7 @@ impl Drop for Renderer {
 
             self.vk_context
                 .logical_device
-                .destroy_render_pass(self.renderpass, None); 
+                .destroy_render_pass(self.renderpass, None);
         }
     }
 }

@@ -71,10 +71,10 @@ impl GraphcisStageBuilder {
                 let mut attachment = vk::AttachmentDescription {
                     format: image.format,
                     samples: vk::SampleCountFlags::TYPE_1,
-                    load_op: if self.clear { 
+                    load_op: if self.clear {
                         vk::AttachmentLoadOp::CLEAR
-                    } else { 
-                        vk::AttachmentLoadOp::DONT_CARE 
+                    } else {
+                        vk::AttachmentLoadOp::DONT_CARE
                     },
                     store_op: vk::AttachmentStoreOp::STORE,
                     ..Default::default()
@@ -118,9 +118,9 @@ impl GraphcisStageBuilder {
         }
 
         // TODO should this always hold true?
-        if color_attachment_refs.is_empty() 
+        if color_attachment_refs.is_empty()
             || depth_attachment_refs.is_empty()
-            || depth_attachment_refs.len() > 1 
+            || depth_attachment_refs.len() > 1
         {
             return None;
         }
@@ -128,19 +128,17 @@ impl GraphcisStageBuilder {
         let dependencies = [vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ 
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
                 | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ..Default::default()
         }];
 
-        let subpasses = [
-            vk::SubpassDescription::builder()
-                .color_attachments(&color_attachment_refs)
-                .depth_stencil_attachment(&depth_attachment_refs[0])
-                .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-                .build()
-        ];
+        let subpasses = [vk::SubpassDescription::builder()
+            .color_attachments(&color_attachment_refs)
+            .depth_stencil_attachment(&depth_attachment_refs[0])
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .build()];
 
         let render_pass_create_info = vk::RenderPassCreateInfo::builder()
             .attachments(&attachments)

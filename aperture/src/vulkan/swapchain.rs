@@ -2,8 +2,8 @@ use crate::vulkan::logical_device::LogicalDevice;
 use crate::vulkan::physical_device::PhysicalDevice;
 use crate::vulkan::surface::Surface;
 
-use ash::{Instance, vk};
 use ash::extensions::khr::Swapchain as AshSwapchain;
+use ash::{vk, Instance};
 
 use std::ops::Deref;
 use std::sync::Arc;
@@ -18,14 +18,18 @@ pub struct Swapchain {
 
 impl Swapchain {
     pub fn new(
-        instance: &Instance, 
-        surface: &Surface, 
-        logical_device: Arc<LogicalDevice>, 
+        instance: &Instance,
+        surface: &Surface,
+        logical_device: Arc<LogicalDevice>,
         physical_device: &PhysicalDevice,
     ) -> Self {
         let present_modes = unsafe {
-            surface.ash_handle
-                .get_physical_device_surface_present_modes(physical_device.vk_handle, surface.vk_handle)
+            surface
+                .ash_handle
+                .get_physical_device_surface_present_modes(
+                    physical_device.vk_handle,
+                    surface.vk_handle,
+                )
                 .unwrap()
         };
 
@@ -57,9 +61,7 @@ impl Swapchain {
                 .unwrap()
         };
 
-        let images = unsafe {
-            ash_handle.get_swapchain_images(vk_handle).unwrap()
-        };
+        let images = unsafe { ash_handle.get_swapchain_images(vk_handle).unwrap() };
 
         let image_views: Vec<vk::ImageView> = images
             .iter()
@@ -96,15 +98,15 @@ impl Swapchain {
 
 impl Deref for Swapchain {
     type Target = AshSwapchain;
-    
+
     fn deref(&self) -> &Self::Target {
-        &self.ash_handle    
+        &self.ash_handle
     }
 }
 
 impl Drop for Swapchain {
     fn drop(&mut self) {
-        unsafe { 
+        unsafe {
             for &image_view in self.image_views.iter() {
                 self.logical_device.destroy_image_view(image_view, None);
             }
