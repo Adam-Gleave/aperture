@@ -2,5 +2,8 @@ pub mod buffer;
 pub mod context;
 pub mod debug;
 pub mod image;
+pub mod logical_device;
+pub mod physical_device;
 pub mod shader_module;
 pub mod surface;
+pub mod swapchain;

@@ -1,4 +1,5 @@
 mod app;
+mod graph;
 mod render;
 mod state;
 mod vulkan;

@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub struct Buffer {
     pub vk_handle: vk::Buffer,
     pub vk_context: Arc<Context>,
+    pub usage: vk::BufferUsageFlags,
     pub reserved_size: usize,
     pub used_size: usize,
 }
@@ -33,7 +34,7 @@ impl Buffer {
 
         let memory_index = find_memorytype_index(
             &memory_req,
-            &vk_context.device_memory_properties,
+            &vk_context.physical_device.memory_properties,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )
         .unwrap();
@@ -61,6 +62,7 @@ impl Buffer {
         Self {
             vk_handle: buffer,
             vk_context,
+            usage,
             reserved_size: size as _,
             used_size: 0,
         }
@@ -91,7 +93,7 @@ impl Buffer {
         
         let staging_buffer_memory_index = find_memorytype_index(
             &staging_buffer_memory_req,
-            &self.vk_context.device_memory_properties,
+            &self.vk_context.physical_device.memory_properties,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         )
         .unwrap();
@@ -141,7 +143,7 @@ impl Buffer {
             &self.vk_context.logical_device,
             self.vk_context.draw_command_buffer,
             self.vk_context.draw_commands_reuse_fence,
-            self.vk_context.present_queue,
+            self.vk_context.logical_device.present_queue,
             &[],
             &[],
             &[],

@@ -1,3 +1,5 @@
+use crate::vulkan::physical_device::PhysicalDevice;
+
 use ash::{Entry, Instance, vk};
 use ash::extensions::khr::Surface as AshSurface;
 use winit::window::Window;
@@ -31,16 +33,16 @@ impl Surface {
         }
     }
 
-    pub fn init_properties(&mut self, device: &vk::PhysicalDevice, width: u32, height: u32) {
+    pub fn init_properties(&mut self, device: &PhysicalDevice, width: u32, height: u32) {
         let format = unsafe {
             self.ash_handle
-                .get_physical_device_surface_formats(*device, self.vk_handle)
+                .get_physical_device_surface_formats(device.vk_handle, self.vk_handle)
                 .unwrap()[0]
         };
 
         let capabilities = unsafe {
             self.ash_handle 
-                .get_physical_device_surface_capabilities(*device, self.vk_handle)
+                .get_physical_device_surface_capabilities(device.vk_handle, self.vk_handle)
                 .unwrap()
         };
 

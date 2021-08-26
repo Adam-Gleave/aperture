@@ -1,30 +1,33 @@
 use crate::vulkan::context::{find_memorytype_index, record_submit_command_buffer};
+use crate::vulkan::logical_device::LogicalDevice;
 
-use ash::{Device, vk};
+use ash::vk;
 
 use std::sync::Arc;
 
 pub struct ImageTransition {
     command_buffer: vk::CommandBuffer,
     commands_reuse_fence: vk::Fence,
-    queue: vk::Queue,
     aspect: vk::ImageAspectFlags,
     access: vk::AccessFlags,
-    initial_layout: vk::ImageLayout,
-    final_layout: vk::ImageLayout,
+    pub initial_layout: vk::ImageLayout,
+    pub final_layout: vk::ImageLayout,
 }
 
 pub struct Image {
-    pub device: Arc<Device>,
+    pub device: Arc<LogicalDevice>,
     pub image: vk::Image,
     pub image_memory: vk::DeviceMemory,
     pub view: vk::ImageView,
+    pub usage: vk::ImageUsageFlags,
+    pub format: vk::Format,
     pub transition: Option<ImageTransition>,
+    pub back_buffer: bool,
 }
 
 impl Image {
     pub fn new(
-        device: Arc<Device>,
+        device: Arc<LogicalDevice>,
         device_memory_properties: vk::PhysicalDeviceMemoryProperties,
         image_type: vk::ImageType,
         format: vk::Format,
@@ -92,7 +95,10 @@ impl Image {
             image,
             view,
             image_memory,
+            usage,
+            format,
             transition: None,
+            back_buffer: false,
         }
     }
 
@@ -100,7 +106,6 @@ impl Image {
         mut self,
         command_buffer: vk::CommandBuffer,
         commands_reuse_fence: vk::Fence,
-        queue: vk::Queue,
         aspect: vk::ImageAspectFlags,
         access: vk::AccessFlags,
         initial_layout: vk::ImageLayout,
@@ -109,7 +114,6 @@ impl Image {
         self.transition = Some(ImageTransition {
             command_buffer,
             commands_reuse_fence,
-            queue,
             aspect,
             access,
             initial_layout,
@@ -119,11 +123,14 @@ impl Image {
         self
     }
 
+    pub fn set_as_back_buffer(&mut self, status: bool) {
+        self.back_buffer = true;
+    }
+
     pub fn transition(&self) {
         let ImageTransition {
             command_buffer,
             commands_reuse_fence,
-            queue,
             aspect,
             access,
             initial_layout,
@@ -134,7 +141,7 @@ impl Image {
             &self.device,
             *command_buffer,
             *commands_reuse_fence,
-            *queue,
+            self.device.present_queue,
             &[],
             &[],
             &[],
