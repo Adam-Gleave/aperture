@@ -9,10 +9,15 @@ use std::sync::Arc;
 pub struct ShaderModule {
     pub vk_handle: vk::ShaderModule,
     pub vk_context: Arc<Context>,
+    pub stage: vk::ShaderStageFlags,
 }
 
 impl ShaderModule {
-    pub fn new(spirv: &mut Cursor<&[u8]>, vk_context: Arc<Context>) -> Self {
+    pub fn new(
+        spirv: &mut Cursor<&[u8]>, 
+        vk_context: Arc<Context>, 
+        stage: vk::ShaderStageFlags,
+    ) -> Self {
         let source = read_spv(spirv).unwrap();
         let create_info = vk::ShaderModuleCreateInfo::builder().code(&source);
         let shader_module = unsafe {
@@ -25,6 +30,7 @@ impl ShaderModule {
         Self {
             vk_handle: shader_module,
             vk_context,
+            stage,
         }
     }
 }

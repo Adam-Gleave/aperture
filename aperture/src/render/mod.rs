@@ -149,6 +149,7 @@ impl Renderer {
                     &include_bytes!("../../../data/shaders/gen/triangle.vert.spv")[..],
                 ),
                 vk_context.clone(),
+                vk::ShaderStageFlags::VERTEX,
             );
 
             let frag_shader_module = ShaderModule::new(
@@ -156,6 +157,7 @@ impl Renderer {
                     &include_bytes!("../../../data/shaders/gen/triangle.frag.spv")[..],
                 ),
                 vk_context.clone(),
+                vk::ShaderStageFlags::FRAGMENT,
             );
 
             let layout_create_info = vk::PipelineLayoutCreateInfo::default();
